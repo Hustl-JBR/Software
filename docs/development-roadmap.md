@@ -14,6 +14,8 @@ Resolve legal operating role, user/approver matrix, quote/acceptance evidence, c
 
 Establish the application skeleton, identity/organization boundary, scoped persistence, audit/idempotency primitives, customer/facility records, shipment intake, deterministic mock structured extraction, issue resolution, human approval, and draft load/stops. No messages or external services.
 
+**Implementation status:** the smallest end-to-end slice is implemented. It uses synthetic development authentication and a deterministic extraction adapter; production identity, facility master data/time zones, and deployment hardening remain Phase 1 exit work. See [ADR 0001](adr/0001-phase-one-runtime-decisions.md).
+
 ### Phase 2 — human-controlled quote workflow
 
 Add manual market inputs, versioned rule sets, deterministic cents/margin calculation, quote revisions, risk flags, approval, customer acceptance evidence, and communication drafts. Sending remains mocked/manual until an adapter is approved.

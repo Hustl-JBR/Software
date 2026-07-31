@@ -1,0 +1,228 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+
+enum MembershipRole { OPERATOR APPROVER VIEWER }
+enum MembershipStatus { ACTIVE SUSPENDED }
+enum ShipmentRequestStatus { NEEDS_REVIEW APPROVED }
+enum IssueType { MISSING CONFLICTING UNCERTAIN INVALID UNSUPPORTED }
+enum ApprovalStatus { ACCEPTED }
+enum LoadStatus { DRAFT }
+enum StopType { PICKUP DELIVERY }
+enum ActorType { USER SYSTEM }
+enum IdempotencyStatus { IN_PROGRESS COMPLETED }
+
+model Organization {
+  id String @id @default(uuid()) @db.Uuid
+  slug String @unique
+  name String
+  memberships OrganizationMembership[]
+  customers Customer[]
+  shipmentRequests ShipmentRequest[]
+  revisions ShipmentRequestRevision[]
+  issues ShipmentIssue[]
+  approvals ApprovalRequest[]
+  loads Load[]
+  stops LoadStop[]
+  statusHistory LoadStatusHistory[]
+  auditEvents AuditEvent[]
+  idempotencyRecords IdempotencyRecord[]
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("organizations")
+}
+
+model User {
+  id String @id @default(uuid()) @db.Uuid
+  email String @unique
+  name String
+  memberships OrganizationMembership[]
+  revisions ShipmentRequestRevision[]
+  approvals ApprovalRequest[]
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("users")
+}
+
+model OrganizationMembership {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid @map("organization_id")
+  userId String @db.Uuid @map("user_id")
+  role MembershipRole
+  status MembershipStatus @default(ACTIVE)
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  @@unique([organizationId, userId])
+  @@map("organization_memberships")
+}
+
+model Customer {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid @map("organization_id")
+  name String
+  organization Organization @relation(fields: [organizationId], references: [id])
+  loads Load[]
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([organizationId, id])
+  @@unique([organizationId, name])
+  @@map("customers")
+}
+
+model ShipmentRequest {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid @map("organization_id")
+  status ShipmentRequestStatus @default(NEEDS_REVIEW)
+  currentRevisionNumber Int @default(1) @map("current_revision_number")
+  organization Organization @relation(fields: [organizationId], references: [id])
+  revisions ShipmentRequestRevision[]
+  issues ShipmentIssue[]
+  approvals ApprovalRequest[]
+  load Load?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@unique([organizationId, id])
+  @@map("shipment_requests")
+}
+
+model ShipmentRequestRevision {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid @map("organization_id")
+  shipmentRequestId String @db.Uuid @map("shipment_request_id")
+  revisionNumber Int @map("revision_number")
+  originalText String @map("original_text")
+  structuredData Json @map("structured_data")
+  extractionMetadata Json @map("extraction_metadata")
+  validationResults Json @map("validation_results")
+  createdById String @db.Uuid @map("created_by_id")
+  organization Organization @relation(fields: [organizationId], references: [id])
+  shipmentRequest ShipmentRequest @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
+  createdBy User @relation(fields: [createdById], references: [id])
+  issues ShipmentIssue[]
+  approval ApprovalRequest?
+  load Load?
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([organizationId, id])
+  @@unique([shipmentRequestId, revisionNumber])
+  @@map("shipment_request_revisions")
+}
+
+model ShipmentIssue {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid @map("organization_id")
+  shipmentRequestId String @db.Uuid @map("shipment_request_id")
+  revisionId String @db.Uuid @map("revision_id")
+  type IssueType
+  field String
+  message String
+  sourceReference String? @map("source_reference")
+  organization Organization @relation(fields: [organizationId], references: [id])
+  shipmentRequest ShipmentRequest @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
+  revision ShipmentRequestRevision @relation(fields: [organizationId, revisionId], references: [organizationId, id])
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("shipment_issues")
+}
+
+model ApprovalRequest {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid @map("organization_id")
+  shipmentRequestId String @db.Uuid @map("shipment_request_id")
+  revisionId String @unique @db.Uuid @map("revision_id")
+  approvedById String @db.Uuid @map("approved_by_id")
+  status ApprovalStatus @default(ACCEPTED)
+  decisionReason String? @map("decision_reason")
+  organization Organization @relation(fields: [organizationId], references: [id])
+  shipmentRequest ShipmentRequest @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
+  revision ShipmentRequestRevision @relation(fields: [organizationId, revisionId], references: [organizationId, id])
+  approvedBy User @relation(fields: [approvedById], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([organizationId, id])
+  @@map("approval_requests")
+}
+
+model Load {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid @map("organization_id")
+  shipmentRequestId String @unique @db.Uuid @map("shipment_request_id")
+  approvedRevisionId String @unique @db.Uuid @map("approved_revision_id")
+  customerId String @db.Uuid @map("customer_id")
+  loadNumber String @map("load_number")
+  status LoadStatus @default(DRAFT)
+  commodity String
+  weightPounds Int @map("weight_pounds")
+  equipmentType String @map("equipment_type")
+  pickupDate DateTime @db.Date @map("pickup_date")
+  deliveryDate DateTime @db.Date @map("delivery_date")
+  organization Organization @relation(fields: [organizationId], references: [id])
+  shipmentRequest ShipmentRequest @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
+  approvedRevision ShipmentRequestRevision @relation(fields: [organizationId, approvedRevisionId], references: [organizationId, id])
+  customer Customer @relation(fields: [organizationId, customerId], references: [organizationId, id])
+  stops LoadStop[]
+  statusHistory LoadStatusHistory[]
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([organizationId, id])
+  @@unique([organizationId, loadNumber])
+  @@map("loads")
+}
+
+model LoadStop {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid @map("organization_id")
+  loadId String @db.Uuid @map("load_id")
+  sequence Int
+  type StopType
+  facilityName String @map("facility_name")
+  city String
+  state String
+  postalCode String @map("postal_code")
+  appointmentStart DateTime? @map("appointment_start")
+  appointmentEnd DateTime? @map("appointment_end")
+  instructions String?
+  organization Organization @relation(fields: [organizationId], references: [id])
+  load Load @relation(fields: [organizationId, loadId], references: [organizationId, id])
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([loadId, sequence])
+  @@map("load_stops")
+}
+
+model LoadStatusHistory {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid @map("organization_id")
+  loadId String @db.Uuid @map("load_id")
+  toStatus LoadStatus @map("to_status")
+  actorId String @db.Uuid @map("actor_id")
+  reason String
+  organization Organization @relation(fields: [organizationId], references: [id])
+  load Load @relation(fields: [organizationId, loadId], references: [organizationId, id])
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("load_status_history")
+}
+
+model AuditEvent {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid @map("organization_id")
+  actorType ActorType @map("actor_type")
+  actorId String? @db.Uuid @map("actor_id")
+  action String
+  entityType String @map("entity_type")
+  entityId String @db.Uuid @map("entity_id")
+  beforeState Json? @map("before_state")
+  afterState Json @map("after_state")
+  metadata Json?
+  correlationId String @db.Uuid @map("correlation_id")
+  organization Organization @relation(fields: [organizationId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+  @@index([organizationId, entityType, entityId, createdAt])
+  @@map("audit_events")
+}
+
+model IdempotencyRecord {
+  id String @id @default(uuid()) @db.Uuid
+  organizationId String @db.Uuid @map("organization_id")
+  command String
+  key String
+  requestHash String @map("request_hash")
+  status IdempotencyStatus @default(IN_PROGRESS)
+  resultEntityId String? @db.Uuid @map("result_entity_id")
+  organization Organization @relation(fields: [organizationId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+  @@unique([organizationId, command, key])
+  @@map("idempotency_records")
+}
