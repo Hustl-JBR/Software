@@ -4,13 +4,14 @@ import { prisma } from "@atlas/db/client";
 import { getSessionUserId } from "@/lib/session";
 import { approve, saveCorrection } from "@/app/actions";
 import { ShipmentForm } from "@/app/ui/shipment-form";
+import { ErrorAlert } from "@/app/ui/error-alert";
 
 export default async function Review({
   params,
   searchParams,
 }: {
   params: Promise<{ slug: string; id: string }>;
-  searchParams: Promise<{ saved?: string }>;
+  searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
   const { slug, id } = await params;
   const userId = await getSessionUserId();
@@ -35,6 +36,7 @@ export default async function Review({
   if (request.load) redirect(`/org/${slug}/loads/${request.load.id}`);
   const revision = request.revisions[0];
   const values = revision.structuredData as Record<string, unknown>;
+  const query = await searchParams;
   return (
     <>
       <a className="back" href={`/org/${slug}`}>
@@ -53,7 +55,8 @@ export default async function Review({
         </div>
         <span className="badge needs_review">Needs review</span>
       </div>
-      {(await searchParams).saved && (
+      <ErrorAlert code={query.error} />
+      {query.saved && (
         <div className="alert success">
           A new immutable correction revision was saved.
         </div>
@@ -109,6 +112,7 @@ export default async function Review({
         {membership.role === "APPROVER" ? (
           <form action={approve}>
             <input type="hidden" name="organizationSlug" value={slug} />
+            <input type="hidden" name="requestId" value={request.id} />
             <input type="hidden" name="revisionId" value={revision.id} />
             <input type="hidden" name="idempotencyKey" value={randomUUID()} />
             <label className="check">

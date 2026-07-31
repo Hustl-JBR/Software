@@ -1,11 +1,23 @@
+import { notFound, redirect } from "next/navigation";
 import { ShipmentForm } from "@/app/ui/shipment-form";
+import { ErrorAlert } from "@/app/ui/error-alert";
 import { submitShipment } from "@/app/actions";
+import { getSessionUserId } from "@/lib/session";
+import { prisma } from "@atlas/db/client";
 export default async function NewRequest({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { slug } = await params;
+  const userId = await getSessionUserId();
+  if (!userId) redirect("/sign-in");
+  const membership = await prisma.organizationMembership.findFirst({
+    where: { userId, status: "ACTIVE", organization: { slug } },
+  });
+  if (!membership) notFound();
   return (
     <>
       <a className="back" href={`/org/${slug}`}>
@@ -17,6 +29,7 @@ export default async function NewRequest({
         Enter plain English, structured facts, or both. Atlas will never guess
         required information.
       </p>
+      <ErrorAlert code={(await searchParams).error} />
       <form action={submitShipment}>
         <input type="hidden" name="organizationSlug" value={slug} />
         <label>

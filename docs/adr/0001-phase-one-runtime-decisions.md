@@ -17,6 +17,7 @@ The approved documentation left authentication provider, row-level security, tem
 6. Store pickup/delivery as calendar dates and appointment values as UTC instants. The initial UI labels browser local values but normalizes them to UTC; facility IANA time-zone selection is a known limitation.
 7. Treat approval as the explicit approval request and decision in one command because this slice has a single human approver interaction. The exact immutable revision is bound and load creation occurs in the same serializable transaction.
 8. Use a deterministic, labeled-text mock extractor behind an interface. Its limited patterns demonstrate provenance and validation boundaries; it is not natural-language understanding.
+9. Verify the slice in GitHub Actions with Node.js 22 LTS and a disposable PostgreSQL 16 service database. Docker Compose provides PostgreSQL only for local development; Atlas itself remains a host-run modular monolith.
 
 ## Consequences
 

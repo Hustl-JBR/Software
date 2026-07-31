@@ -139,9 +139,62 @@ describe.skipIf(!enabled)("approval transaction with PostgreSQL", () => {
         data: { originalText: "mutated" },
       }),
     ).rejects.toThrow();
+    await expect(
+      db.shipmentRequestRevision.delete({ where: { id: revisionId } }),
+    ).rejects.toThrow();
     const event = await db.auditEvent.findFirstOrThrow();
     await expect(
+      db.auditEvent.update({
+        where: { id: event.id },
+        data: { action: "MUTATED" },
+      }),
+    ).rejects.toThrow();
+    await expect(
       db.auditEvent.delete({ where: { id: event.id } }),
+    ).rejects.toThrow();
+  });
+
+  it("creates all expected tables and immutable load status history", async () => {
+    const tables = await db.$queryRaw<Array<{ table_name: string }>>`
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+    `;
+    expect(tables.map((row) => row.table_name)).toEqual(
+      expect.arrayContaining([
+        "organizations",
+        "users",
+        "organization_memberships",
+        "customers",
+        "shipment_requests",
+        "shipment_request_revisions",
+        "shipment_issues",
+        "approval_requests",
+        "loads",
+        "load_stops",
+        "load_status_history",
+        "audit_events",
+        "idempotency_records",
+      ]),
+    );
+    const revisionId = await revision();
+    const loadId = await approveRevision(
+      approverId,
+      slug,
+      revisionId,
+      "history",
+    );
+    const history = await db.loadStatusHistory.findFirstOrThrow({
+      where: { loadId },
+    });
+    await expect(
+      db.loadStatusHistory.update({
+        where: { id: history.id },
+        data: { reason: "MUTATED" },
+      }),
+    ).rejects.toThrow();
+    await expect(
+      db.loadStatusHistory.delete({ where: { id: history.id } }),
     ).rejects.toThrow();
   });
 });

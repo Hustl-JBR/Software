@@ -12,7 +12,15 @@ const stateCode = z
   .trim()
   .toUpperCase()
   .regex(/^[A-Z]{2}$/, "Use a two-letter state code");
-const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD")
+  .refine((value) => {
+    const date = new Date(`${value}T00:00:00.000Z`);
+    return (
+      !Number.isNaN(date.valueOf()) && date.toISOString().startsWith(value)
+    );
+  }, "Enter a valid calendar date");
 
 const shipmentCandidateObject = z.object({
   customerName: requiredText("Customer or shipper name"),

@@ -25,14 +25,14 @@ Dates include local value and time-zone status. Locations distinguish raw text f
 
 ## Approval matrix
 
-| Proposed action | AI contribution | Required human gate |
-| --- | --- | --- |
-| Intake/load fields | Extract candidates and issues | Reviewer approves load creation/update. |
-| Customer quote | Suggest risk flags or price range from supplied inputs | Authorized quote approver approves exact revision before separate send command. |
-| Carrier | Rank eligible candidates only after deterministic checks | Operations approver selects and approves; compliance warnings cannot be hidden. |
-| Communication | Draft text | Authorized user reviews; consequential messages also require underlying action approval. |
-| Documents/charges | Extract and compare | Human reviews mismatch/accessorial and finance approvals. |
-| Delay/exception | Flag risk and draft response | Human confirms action/resolution. |
+| Proposed action    | AI contribution                                          | Required human gate                                                                      |
+| ------------------ | -------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Intake/load fields | Extract candidates and issues                            | Reviewer approves load creation/update.                                                  |
+| Customer quote     | Suggest risk flags or price range from supplied inputs   | Authorized quote approver approves exact revision before separate send command.          |
+| Carrier            | Rank eligible candidates only after deterministic checks | Operations approver selects and approves; compliance warnings cannot be hidden.          |
+| Communication      | Draft text                                               | Authorized user reviews; consequential messages also require underlying action approval. |
+| Documents/charges  | Extract and compare                                      | Human reviews mismatch/accessorial and finance approvals.                                |
+| Delay/exception    | Flag risk and draft response                             | Human confirms action/resolution.                                                        |
 
 ## Threats and mitigations
 

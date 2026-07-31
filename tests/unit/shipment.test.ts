@@ -40,6 +40,20 @@ describe("shipment candidate schema", () => {
         deliveryDate: "2026-08-01",
       }).success,
     ).toBe(false));
+  it("rejects impossible pickup and delivery calendar dates", () => {
+    expect(
+      shipmentCandidateSchema.safeParse({
+        ...validCandidate,
+        pickupDate: "2026-02-30",
+      }).success,
+    ).toBe(false);
+    expect(
+      shipmentCandidateSchema.safeParse({
+        ...validCandidate,
+        deliveryDate: "not-a-date",
+      }).success,
+    ).toBe(false);
+  });
   it("rejects incomplete and reversed appointment windows", () => {
     expect(
       shipmentCandidateSchema.safeParse({

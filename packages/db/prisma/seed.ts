@@ -1,6 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 async function main() {
+  if (process.env.SEED_DEVELOPMENT_DATA !== "true") {
+    throw new Error(
+      "Refusing to seed. Set SEED_DEVELOPMENT_DATA=true only for a disposable local or test database.",
+    );
+  }
   const north = await prisma.organization.upsert({
     where: { slug: "atlas-north" },
     update: {},
@@ -53,4 +58,10 @@ async function main() {
   }
   console.log("Seeded two organizations and four synthetic development users.");
 }
-main().finally(() => prisma.$disconnect());
+main()
+  .catch((error: unknown) => {
+    console.error("Development seed failed.");
+    console.error(error instanceof Error ? error.message : "Unknown error");
+    process.exitCode = 1;
+  })
+  .finally(() => prisma.$disconnect());

@@ -1,0 +1,106 @@
+name: Verify Atlas
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: atlas_test
+          POSTGRES_PASSWORD: atlas_test
+          POSTGRES_DB: atlas_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U atlas_test -d atlas_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://atlas_test:atlas_test@localhost:5432/atlas_test?schema=public
+      SESSION_SECRET: github-actions-synthetic-session-secret-at-least-32-characters
+      NEXT_TELEMETRY_DISABLED: "1"
+      SEED_DEVELOPMENT_DATA: "true"
+      CI: "true"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create synthetic test environment file
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL="postgresql://atlas_test:atlas_test@localhost:5432/atlas_test?schema=public"
+          SESSION_SECRET="github-actions-synthetic-session-secret-at-least-32-characters"
+          SEED_DEVELOPMENT_DATA="true"
+          EOF
+
+      - name: Use Node.js 22 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Enable pinned pnpm through Corepack
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.28.1 --activate
+          pnpm --version
+
+      - name: Locate pnpm store
+        id: pnpm-store
+        shell: bash
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore pnpm dependency cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-node22-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node22-pnpm-
+
+      - name: Install dependencies from lockfile
+        run: pnpm install --frozen-lockfile
+
+      - name: Check formatting
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Apply migrations to clean PostgreSQL 16 database
+        run: pnpm db:deploy
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Run unit tests
+        run: pnpm test:unit
+
+      - name: Run PostgreSQL integration tests
+        run: pnpm test:integration
+
+      - name: Build production Next.js application
+        run: pnpm build
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Seed isolated E2E database
+        run: pnpm db:seed
+
+      - name: Run minimal browser E2E test
+        run: pnpm test:e2e

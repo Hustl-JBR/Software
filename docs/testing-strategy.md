@@ -36,3 +36,7 @@ Factories create at least two organizations with similar identifiers to reveal m
 Pull requests run format/lint/type/unit checks and integration tests with PostgreSQL; affected E2E and schema migration tests run before merge. Main/staging runs the full E2E, security matrix, migration up/down or forward-recovery rehearsal, adapter contracts, and AI regression suite. Production promotion requires review, backup/restore confidence, migration plan, observability, rollback/feature flag, and no unresolved critical vulnerability.
 
 Avoid brittle snapshots of whole pages or model prose. Prefer behavior and invariant assertions. Flaky tests are quarantined only with an owner and deadline; security/tenant tests are never optional.
+
+## Executable verification
+
+The repository workflow at `.github/workflows/ci.yml` runs on pull requests and pushes to `main` with Node.js 22 LTS and PostgreSQL 16. It installs from the frozen pnpm lockfile, checks formatting and lint, generates Prisma, applies the checked-in migration to a clean test database, type-checks, runs unit and PostgreSQL integration tests, builds Next.js, and finally executes one Chromium E2E test against seeded synthetic data. None of these gates is allowed to continue on error.

@@ -86,7 +86,7 @@ export async function createShipmentRequest(userId: string, input: unknown) {
           schemaVersion: extraction.schemaVersion,
           sourceReferences: extraction.sourceReferences,
         },
-        validationResults: { issues: extraction.issues },
+        validationResults: toJson({ issues: extraction.issues }),
         createdById: context.userId,
       },
     });
@@ -171,7 +171,7 @@ export async function correctShipmentRequest(
           basedOnRevisionId: previous.id,
           schemaVersion: "1",
         },
-        validationResults: { issues },
+        validationResults: toJson({ issues }),
         createdById: context.userId,
       },
     });
@@ -439,4 +439,8 @@ function stopData(
       instructions: data.specialInstructions || undefined,
     },
   ];
+}
+
+function toJson(value: unknown): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }

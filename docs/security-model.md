@@ -16,16 +16,16 @@ Use RBAC for coarse capabilities plus contextual policy checks (ABAC) for organi
 
 Suggested roles are templates, not hard-coded trust:
 
-| Role | Representative permissions |
-| --- | --- |
-| Org admin | Manage organization settings, memberships, role assignments; no implicit finance/operations approval. |
-| Operations | Read/write customers, facilities, intake, loads, stops, tracking, documents, drafts, and exceptions. |
-| Sales/pricing | Manage intake/quotes and pricing inputs; request quote approval. |
-| Operations approver | Approve carrier selection, rate confirmation, operational exceptions within policy. |
-| Finance | Prepare charges, invoices, bills, and reconciliation. |
-| Finance approver | Approve invoice issuance, bills, payment preparation, and accessorials within thresholds. |
-| Compliance | Manage checks and review warnings; override requires explicit permission and approval. |
-| Auditor | Read scoped records/audit evidence; no mutations or secret/document bulk export by default. |
+| Role                | Representative permissions                                                                            |
+| ------------------- | ----------------------------------------------------------------------------------------------------- |
+| Org admin           | Manage organization settings, memberships, role assignments; no implicit finance/operations approval. |
+| Operations          | Read/write customers, facilities, intake, loads, stops, tracking, documents, drafts, and exceptions.  |
+| Sales/pricing       | Manage intake/quotes and pricing inputs; request quote approval.                                      |
+| Operations approver | Approve carrier selection, rate confirmation, operational exceptions within policy.                   |
+| Finance             | Prepare charges, invoices, bills, and reconciliation.                                                 |
+| Finance approver    | Approve invoice issuance, bills, payment preparation, and accessorials within thresholds.             |
+| Compliance          | Manage checks and review warnings; override requires explicit permission and approval.                |
+| Auditor             | Read scoped records/audit evidence; no mutations or secret/document bulk export by default.           |
 
 Define atomic permissions such as `load.read`, `load.update`, `quote.request_approval`, `quote.approve`, `quote.send`, `booking.approve`, `rate_confirmation.send`, `accessorial.approve`, `invoice.approve`, `invoice.issue`, `carrier_bill.approve`, `payment.prepare`, `compliance.override`, `audit.read`, and `membership.manage`.
 

@@ -42,18 +42,62 @@ Atlas now includes a minimal internal application for the first controlled workf
 
 No real AI, messaging, tracking, mapping, carrier, quote, invoice, document, or payment integration is included.
 
-## Local setup
+## Required software
 
-Prerequisites are Node.js 22+, pnpm 10+, and PostgreSQL 16+.
+- Git.
+- Node.js **22 LTS** (the repository declares `22.x`).
+- Corepack, included with the official Node.js distribution.
+- Docker Desktop with Docker Compose **or** a native PostgreSQL 16 installation.
+
+The repository pins pnpm 10.28.1 through `packageManager`. Do not install a different global package manager.
+
+## Cross-platform local setup
+
+Run these commands from the repository root in Bash, zsh, or PowerShell. Docker Compose runs PostgreSQL only; the application continues to run directly on the host.
 
 ```bash
+corepack enable
+corepack prepare pnpm@10.28.1 --activate
+docker compose up -d postgres
 cp .env.example .env
-pnpm install
+pnpm install --frozen-lockfile
 pnpm db:generate
 pnpm db:deploy
 pnpm db:seed
 pnpm dev
 ```
+
+If using native PostgreSQL instead, create `atlas` and `atlas_test` databases owned by a local `atlas` user, then update `DATABASE_URL` in `.env`. Never reuse a production database.
+
+The seed command refuses to run unless `SEED_DEVELOPMENT_DATA=true`. The example environment enables it only for the disposable local workflow; remove it from any shared or production configuration.
+
+Open `http://localhost:3000` after the development server reports that it is ready.
+
+### Windows PowerShell
+
+Install Git, Node.js 22 LTS, and Docker Desktop first. Ensure Docker Desktop is running and configured for Linux containers. Then open PowerShell in the repository root:
+
+```powershell
+corepack enable
+corepack prepare pnpm@10.28.1 --activate
+docker compose up -d postgres
+Copy-Item .env.example .env
+pnpm install --frozen-lockfile
+pnpm db:generate
+pnpm db:deploy
+pnpm db:seed
+pnpm dev
+```
+
+If PowerShell reports that Corepack cannot modify the Node.js installation, reopen PowerShell as Administrator for `corepack enable`, close it, and run the remaining commands in a normal non-administrator terminal.
+
+To stop PostgreSQL without deleting local data:
+
+```powershell
+docker compose stop postgres
+```
+
+To permanently remove the local Atlas databases and start clean, run `docker compose down -v`. This is destructive and must never be used against shared or production data.
 
 Open `http://localhost:3000` and use a seeded synthetic identity:
 
@@ -75,9 +119,40 @@ This passwordless selector is explicitly a **development authentication seam**, 
 | `pnpm test`             | Run unit and PostgreSQL integration tests                   |
 | `pnpm test:unit`        | Run deterministic domain/adapter tests                      |
 | `pnpm test:integration` | Run real-PostgreSQL command tests (requires `DATABASE_URL`) |
+| `pnpm test:e2e`         | Run the single Playwright browser workflow test             |
 | `pnpm format:check`     | Check formatting                                            |
 | `pnpm db:migrate`       | Create/apply a development migration                        |
 | `pnpm db:deploy`        | Apply checked-in migrations                                 |
 | `pnpm db:seed`          | Seed two organizations and synthetic users                  |
 
-The integration suite intentionally skips when `DATABASE_URL` is absent; it must run against PostgreSQL before merge or deployment.
+The integration suite intentionally skips when `DATABASE_URL` is absent; it must run against PostgreSQL before merge or deployment. For the Compose test database, temporarily set `DATABASE_URL` to `postgresql://atlas:atlas@localhost:5432/atlas_test?schema=public`, deploy migrations, and run the integration suite:
+
+```bash
+DATABASE_URL="postgresql://atlas:atlas@localhost:5432/atlas_test?schema=public" pnpm db:deploy
+DATABASE_URL="postgresql://atlas:atlas@localhost:5432/atlas_test?schema=public" pnpm test:integration
+```
+
+PowerShell equivalent:
+
+```powershell
+$env:DATABASE_URL="postgresql://atlas:atlas@localhost:5432/atlas_test?schema=public"
+pnpm db:deploy
+pnpm test:integration
+Remove-Item Env:DATABASE_URL
+```
+
+Run the complete local verification sequence before opening a pull request:
+
+```bash
+pnpm format:check
+pnpm lint
+pnpm db:generate
+pnpm typecheck
+pnpm test:unit
+pnpm test:integration
+pnpm build
+pnpm exec playwright install chromium
+pnpm test:e2e
+```
+
+The E2E test expects the development seed identities in an isolated database and must not target a shared environment.

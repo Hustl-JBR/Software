@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@atlas/db/client";
 import { getSessionUserId } from "@/lib/session";
 import { signOut } from "../../actions";
+import { ErrorAlert } from "@/app/ui/error-alert";
 export default async function Dashboard({
   params,
   searchParams,
@@ -40,11 +41,7 @@ export default async function Dashboard({
           <button className="secondary">Sign out</button>
         </form>
       </div>
-      {(await searchParams).error && (
-        <div className="alert error">
-          Your role does not permit that action.
-        </div>
-      )}
+      <ErrorAlert code={(await searchParams).error} />
       <div className="actions">
         <a className="button" href={`/org/${slug}/requests/new`}>
           New shipment request

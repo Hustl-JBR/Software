@@ -14,7 +14,11 @@ export default async function SignIn({
         authentication is not configured.
       </p>
       {error && (
-        <div className="alert error">That development user is unavailable.</div>
+        <div className="alert error" role="alert">
+          {error === "database"
+            ? "Atlas cannot reach the development database. Confirm PostgreSQL and the environment configuration."
+            : "That development user is unavailable."}
+        </div>
       )}
       <form action={signIn}>
         <label>
