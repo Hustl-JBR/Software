@@ -20,7 +20,8 @@
     "db:migrate": "prisma migrate dev --schema packages/db/prisma/schema.prisma",
     "db:deploy": "prisma migrate deploy --schema packages/db/prisma/schema.prisma",
     "db:seed": "tsx packages/db/prisma/seed.ts",
-    "db:seed:staging": "tsx apps/web/scripts/seed-staging.ts"
+    "db:seed:staging": "tsx apps/web/scripts/seed-staging.ts",
+    "db:verify:staging": "tsx apps/web/scripts/verify-staging.ts"
   },
   "devDependencies": {
     "@playwright/test": "1.54.1",
