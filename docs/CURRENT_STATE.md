@@ -1,6 +1,6 @@
 # Current state
 
-Last verified: 2026-07-31. Branch: `codex/create-initial-documentation-and-project-plan`.
+Last verified: 2026-08-01. Branch: `codex/create-initial-documentation-and-project-plan`.
 
 Published approved demo baseline: commit `9a178c7`, remote branch `origin/codex/create-initial-documentation-and-project-plan`, draft pull request [#1](https://github.com/Hustl-JBR/Software/pull/1). The four approved demo commits were published without rewriting history on 2026-07-31.
 
@@ -43,4 +43,12 @@ corepack pnpm dev
 
 Unit tests cover domain validation, extraction, demo intake/idempotency, operations-data consistency, navigation state, privacy helpers, and carrier-compliance boundaries. The demo Playwright suite covers every sidebar route, direct loading, active state, browser history, controlled not-found handling, contact masking/reveal/call logging, shared tracking attention, carrier blocking, and console cleanliness. CI also defines formatting, lint, Prisma generation/deployment, type checking, unit/integration tests, build, and Playwright. Last verification: formatting, lint, type checking, 22 unit tests, 12 demo browser tests, demo production build, and a clean in-app browser walkthrough passed.
 
-Exact next recommended task: audit Railway access and the existing real Prisma/authentication seams, then design the explicit demo-versus-real provider boundary and persistent four-employee staging workflow without creating production infrastructure.
+Exact next recommended task: deploy the implemented persistent slice to the isolated Railway staging project and complete the PostgreSQL, authentication, persistence, isolation, restart, and log verification gates.
+
+## Persistent staging implementation
+
+The branch now contains a deployable minimal staging slice: Better Auth email/password authentication with database sessions and disabled public sign-up; active/deactivated users; multiple membership roles; guarded synthetic account provisioning; tenant-scoped PostgreSQL records for customer calls, quotes/approval/acceptance, manual carrier qualification and selection, driver assignment, appointment confirmation, load ownership/next action, tracking updates, communications, tasks, and audit events; `/api/health`; and a persistent staging workspace at `/org/atlas-staging/staging`.
+
+Consequential quote approval, acceptance, load approval, and carrier selection use idempotency records. Quote approval enforces creator/approver separation. Unconfirmed authority/insurance or synthetic cargo coverage below $100,000 blocks carrier selection. No check is represented as official verification.
+
+Local verification on Node 24: formatting, ESLint, strict TypeScript, 22 unit tests, 12 demo Playwright tests, and a demo production build pass. PostgreSQL migration/integration tests and persistent authenticated Playwright tests await the private Railway staging database and deployment. Demo mode remains browser-only and PostgreSQL-free.

@@ -1,6 +1,7 @@
 "use server";
 import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { ZodError } from "zod";
 import { prisma } from "@atlas/db/client";
 import {
@@ -8,7 +9,8 @@ import {
   correctShipmentRequest,
   createShipmentRequest,
 } from "@atlas/db/commands";
-import { createSession, clearSession, getSessionUserId } from "@/lib/session";
+import { getSessionUserId } from "@/lib/session";
+import { auth } from "@/lib/auth";
 import {
   approveDemoRevision,
   correctDemoShipment,
@@ -71,9 +73,14 @@ async function user() {
 export async function signIn(form: FormData) {
   if (isDemoMode()) redirect(`/org/${DEMO_ORGANIZATION.slug}`);
   const email = value(form, "email");
+  const password = value(form, "password");
   try {
+    const result = await auth.api.signInEmail({
+      body: { email, password, rememberMe: false },
+      headers: await headers(),
+    });
     const found = await prisma.user.findUnique({
-      where: { email },
+      where: { id: result.user.id, active: true },
       include: {
         memberships: {
           where: { status: "ACTIVE" },
@@ -84,7 +91,6 @@ export async function signIn(form: FormData) {
     });
     if (!found || !found.memberships[0])
       redirect("/sign-in?error=unknown-user");
-    await createSession(found.id);
     redirect(`/org/${found.memberships[0].organization.slug}`);
   } catch (error) {
     if (isNextRedirect(error)) throw error;
@@ -93,7 +99,7 @@ export async function signIn(form: FormData) {
 }
 export async function signOut() {
   if (isDemoMode()) redirect(`/org/${DEMO_ORGANIZATION.slug}`);
-  await clearSession();
+  await auth.api.signOut({ headers: await headers() });
   redirect("/sign-in");
 }
 export async function submitShipment(form: FormData) {

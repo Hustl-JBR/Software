@@ -4,11 +4,14 @@
   "scripts": {
     "dev": "dotenv -e ../../.env -- next dev",
     "build": "dotenv -e ../../.env -- next build",
+    "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@better-auth/prisma-adapter": "^1.6.25",
     "@prisma/client": "6.13.0",
+    "better-auth": "^1.6.25",
     "next": "15.4.5",
     "react": "19.1.1",
     "react-dom": "19.1.1",

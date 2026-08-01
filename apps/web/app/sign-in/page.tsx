@@ -13,30 +13,36 @@ export default async function SignIn({
       <p className="eyebrow">Internal access</p>
       <h1>Sign in to Atlas</h1>
       <p className="muted">
-        Development authentication uses seeded synthetic identities. Production
-        authentication is not configured.
+        Staging uses individual synthetic employee accounts with expiring,
+        database-backed sessions.
       </p>
       {error && (
         <div className="alert error" role="alert">
           {error === "database"
             ? "Atlas cannot reach the development database. Confirm PostgreSQL and the environment configuration."
-            : "That development user is unavailable."}
+            : "The email or password is invalid, or this account is inactive."}
         </div>
       )}
       <form action={signIn}>
         <label>
           Email
-          <select name="email" defaultValue="approver@atlas.local">
-            <option>approver@atlas.local</option>
-            <option>operator@atlas.local</option>
-            <option>viewer@atlas.local</option>
-            <option>south@atlas.local</option>
-          </select>
+          <input name="email" type="email" autoComplete="username" required />
+        </label>
+        <label>
+          Password
+          <input
+            name="password"
+            type="password"
+            autoComplete="current-password"
+            minLength={12}
+            required
+          />
         </label>
         <button type="submit">Continue securely</button>
       </form>
       <p className="caption">
-        No password is used in this local-only authentication seam.
+        Account creation is disabled. A staging administrator provisions or
+        deactivates employee accounts through the audited seed/admin process.
       </p>
     </section>
   );

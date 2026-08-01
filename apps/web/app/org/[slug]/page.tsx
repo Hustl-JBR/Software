@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@atlas/db/client";
 import { getSessionUserId } from "@/lib/session";
 import { signOut } from "../../actions";
@@ -90,6 +91,17 @@ export default async function Dashboard({
         subtitle={`Signed in as ${membership.user.name} · ${membership.role}`}
       />
       <ErrorAlert code={(await searchParams).error} />
+      <section className="panel request-panel">
+        <div className="panel-heading">
+          <div>
+            <p className="overline">PostgreSQL workspace</p>
+            <h2>Persistent staging operations</h2>
+          </div>
+          <Link className="primary-button" href={`/org/${slug}/staging`}>
+            Open staging workspace
+          </Link>
+        </div>
+      </section>
       <section className="panel request-panel">
         <div className="panel-heading">
           <div>

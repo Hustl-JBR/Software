@@ -1,8 +1,9 @@
 # Next steps
 
-1. Finish automated direct-route, active-navigation, back/forward, and controlled-error coverage.
-2. Move carrier, driver, contacts, facilities, tasks, documents, and settings into the typed central demo state with tested mutations.
-3. Add compliance scenarios for expiring insurance, inactive authority, identity mismatch, inadequate cargo coverage, new-carrier review, and blocked carriers.
-4. Add task conversion for Atlas recommendations and SLA/escalation ownership.
-5. Verify the real PostgreSQL 16 migration and integration suite on a clean database.
-6. Only after design approval, define adapter contracts for official carrier, tracking, communication, mapping, and accounting providers. Do not connect them yet.
+1. Deploy the current branch to the isolated Railway staging project, apply migrations, run PostgreSQL integration tests, and seed four synthetic accounts.
+2. Execute authenticated two-user Playwright coverage for shared data, cross-organization denial, logout/session expiry, and deactivation.
+3. Verify persistence across a Railway web-service restart and inspect browser/deployment logs.
+4. Add a reviewed administrator invitation/provisioning UI before onboarding real employees; require verified email and a password-reset or passkey enrollment flow.
+5. Configure and restore-test an independent private PostgreSQL backup before permitting any real data.
+6. Add rate limiting, CSRF-focused verification, MFA/passkeys for privileged users, and restricted audit export before production planning.
+7. Do not begin production infrastructure, customer portal work, or third-party freight integrations in this milestone.

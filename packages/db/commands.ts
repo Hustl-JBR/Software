@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Prisma, type MembershipRole } from "@prisma/client";
 import { prisma } from "./client";
-import { authorize, type Permission, type Role } from "../auth/policy";
+import { authorizeAny, type Permission, type Role } from "../auth/policy";
 import {
   shipmentRequestCommandSchema,
   validateCandidate,
@@ -14,6 +14,7 @@ export type ActorContext = {
   userId: string;
   organizationId: string;
   role: MembershipRole;
+  roles: MembershipRole[];
 };
 
 async function requireContext(
@@ -27,13 +28,18 @@ async function requireContext(
       organization: { slug: organizationSlug },
       status: "ACTIVE",
     },
+    include: { roles: true },
   });
   if (!membership) throw new Error("NOT_FOUND");
-  authorize(membership.role as Role, permission);
+  const roles = Array.from(
+    new Set([membership.role, ...membership.roles.map((item) => item.role)]),
+  );
+  authorizeAny(roles as Role[], permission);
   return {
     userId,
     organizationId: membership.organizationId,
     role: membership.role,
+    roles,
   };
 }
 
