@@ -31,6 +31,7 @@ jobs:
       SESSION_SECRET: github-actions-synthetic-session-secret-at-least-32-characters
       NEXT_TELEMETRY_DISABLED: "1"
       SEED_DEVELOPMENT_DATA: "true"
+      ATLAS_DEVELOPMENT_SEED_PASSWORD: "github-actions-synthetic-password"
       CI: "true"
 
     steps:
@@ -43,6 +44,7 @@ jobs:
           DATABASE_URL="postgresql://atlas_test:atlas_test@localhost:5432/atlas_test?schema=public"
           SESSION_SECRET="github-actions-synthetic-session-secret-at-least-32-characters"
           SEED_DEVELOPMENT_DATA="true"
+          ATLAS_DEVELOPMENT_SEED_PASSWORD="github-actions-synthetic-password"
           EOF
 
       - name: Use Node.js 22 LTS

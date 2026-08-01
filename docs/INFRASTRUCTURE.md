@@ -2,14 +2,14 @@
 
 ## Railway staging topology
 
-Atlas uses one isolated Railway project named `Project Atlas`. It must not reuse or reference services, variables, databases, or Redis instances from any other Railway project.
+Atlas uses one isolated private Railway project named `Project Atlas` (`8c53093a-edf1-44bf-ad2d-36c81f177252`) in workspace `jbready88-alt's Projects`. Its only environment is `staging` (`909ec8d9-b384-4073-9784-00398f4dca5b`). It does not reuse or reference services, variables, databases, or Redis instances from any other Railway project.
 
-| Resource   | Environment | Reachability                          | Purpose                                                              |
-| ---------- | ----------- | ------------------------------------- | -------------------------------------------------------------------- |
-| Atlas web  | `staging`   | Railway-generated public HTTPS domain | Next.js UI, Better Auth endpoints, server actions, and `/api/health` |
-| PostgreSQL | `staging`   | Railway private network only          | Durable authentication, organization, workflow, task, and audit data |
+| Resource                                                             | Environment | Reachability                                                       | Purpose                                                                                     |
+| -------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `divine-purpose` (Atlas web, `b39b4330-8a5b-40d6-ae6b-77de5dce53ba`) | `staging`   | Public only at `https://divine-purpose-staging.up.railway.app`     | Next.js UI, Better Auth endpoints, server actions, and `/api/health`                        |
+| `Postgres` (`9833b6c6-ce33-48e5-911b-e892811804e1`)                  | `staging`   | Railway private endpoint `postgres` only; no service/custom domain | Durable authentication, organization, workflow, task, and audit data on a persistent volume |
 
-The exact Railway project/service IDs and generated domain are recorded after provisioning. No production environment, Redis, worker, cron, bucket, custom domain, or third-party provider is part of this milestone.
+No production environment, Redis, worker, cron, bucket, custom domain, public database endpoint, or third-party provider is part of this milestone. The generated Railway service name could not be renamed through the connected API; its purpose and immutable service ID are documented above.
 
 ## Cost exposure
 

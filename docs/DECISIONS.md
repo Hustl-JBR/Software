@@ -13,3 +13,4 @@
 - Staging uses one isolated Railway web service plus one private PostgreSQL service. No production environment, Redis, worker, cron, object storage, custom domain, or third-party freight provider is authorized.
 - Multiple employee roles are additive organization-membership role rows. The legacy primary role remains for compatibility during this milestone; authorization evaluates the union server-side and role changes are audited.
 - Carrier qualification in staging records a human-entered assertion only. It never claims FMCSA or insurer verification, and unconfirmed authority/insurance or insufficient synthetic cargo coverage is blocked.
+- Staging deployment is fail-closed: migrations, PostgreSQL integration tests, the guarded synthetic seed, and the guarded two-user persistence/isolation check all run before a web release is promoted.

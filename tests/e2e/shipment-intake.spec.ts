@@ -1,10 +1,18 @@
 import { expect, test } from "@playwright/test";
 
+test.skip(
+  process.env.ATLAS_DEMO_MODE === "true",
+  "The persistent intake flow requires PostgreSQL authentication.",
+);
+
 test("sign in, review extraction, correct, approve, and view a draft load", async ({
   page,
 }) => {
+  const password = process.env.ATLAS_DEVELOPMENT_SEED_PASSWORD;
+  if (!password) throw new Error("Missing ATLAS_DEVELOPMENT_SEED_PASSWORD");
   await page.goto("/sign-in");
-  await page.getByLabel("Email").selectOption("approver@atlas.local");
+  await page.getByLabel("Email").fill("approver@atlas.local");
+  await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Continue securely" }).click();
   await expect(
     page.getByRole("heading", { name: "Operations dashboard" }),

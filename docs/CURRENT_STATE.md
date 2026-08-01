@@ -43,7 +43,7 @@ corepack pnpm dev
 
 Unit tests cover domain validation, extraction, demo intake/idempotency, operations-data consistency, navigation state, privacy helpers, and carrier-compliance boundaries. The demo Playwright suite covers every sidebar route, direct loading, active state, browser history, controlled not-found handling, contact masking/reveal/call logging, shared tracking attention, carrier blocking, and console cleanliness. CI also defines formatting, lint, Prisma generation/deployment, type checking, unit/integration tests, build, and Playwright. Last verification: formatting, lint, type checking, 22 unit tests, 12 demo browser tests, demo production build, and a clean in-app browser walkthrough passed.
 
-Exact next recommended task: deploy the implemented persistent slice to the isolated Railway staging project and complete the PostgreSQL, authentication, persistence, isolation, restart, and log verification gates.
+Exact next recommended task: add the reviewed real-employee invitation/provisioning flow and a private, restore-tested PostgreSQL backup before allowing real data.
 
 ## Persistent staging implementation
 
@@ -51,6 +51,16 @@ The branch now contains a deployable minimal staging slice: Better Auth email/pa
 
 Consequential quote approval, acceptance, load approval, and carrier selection use idempotency records. Quote approval enforces creator/approver separation. Unconfirmed authority/insurance or synthetic cargo coverage below $100,000 blocks carrier selection. No check is represented as official verification.
 
-Local verification on Node 24: formatting, ESLint, strict TypeScript, 22 unit tests, 12 demo Playwright tests, and a demo production build pass. PostgreSQL migration/integration tests and persistent authenticated Playwright tests await the private Railway staging database and deployment. Demo mode remains browser-only and PostgreSQL-free.
+Local verification on Node 24: formatting, ESLint, strict TypeScript, 22 unit tests, 12 demo Playwright tests (the persistent test is correctly skipped in demo mode), and a demo production build pass. Railway pre-deploy verification applies both migrations, runs 25 PostgreSQL integration tests, seeds four synthetic employees, signs in as Alex and Blair, verifies shared organization data and cross-organization denial, and confirms a persistent synthetic shipment after redeployment. Demo mode remains browser-only and PostgreSQL-free.
 
 Railway's initial security gate rejected the inherited `next@15.4.5` before build execution because of published critical advisories. The branch now pins the patched `next@15.4.10` maintenance release required by Railway.
+
+## Deployed staging
+
+- Railway project: `Project Atlas` (`8c53093a-edf1-44bf-ad2d-36c81f177252`)
+- Environment: only `staging` (`909ec8d9-b384-4073-9784-00398f4dca5b`)
+- Web: `divine-purpose`, deployed from this branch at `https://divine-purpose-staging.up.railway.app`
+- Database: `Postgres`, persistent volume and private endpoint only; no public domain or TCP proxy
+- Health: `GET /api/health` returned `status: ok` and `database: reachable`
+- Synthetic users: `alex.sales@atlas-staging.invalid`, `blair.approver@atlas-staging.invalid`, `casey.operations@atlas-staging.invalid`, and `devon.admin@atlas-staging.invalid`
+- Data boundary: synthetic staging data only; no production resources or third-party freight services

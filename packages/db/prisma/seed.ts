@@ -1,9 +1,17 @@
+import { randomUUID } from "node:crypto";
+import { hashPassword } from "better-auth/crypto";
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 async function main() {
   if (process.env.SEED_DEVELOPMENT_DATA !== "true") {
     throw new Error(
       "Refusing to seed. Set SEED_DEVELOPMENT_DATA=true only for a disposable local or test database.",
+    );
+  }
+  const password = process.env.ATLAS_DEVELOPMENT_SEED_PASSWORD;
+  if (!password || password.length < 12) {
+    throw new Error(
+      "Set ATLAS_DEVELOPMENT_SEED_PASSWORD to at least 12 characters.",
     );
   }
   const north = await prisma.organization.upsert({
@@ -48,6 +56,20 @@ async function main() {
       update: {},
       create: { email: item.email, name: item.name },
     });
+    const account = await prisma.account.findFirst({
+      where: { userId: user.id, providerId: "credential" },
+    });
+    if (!account) {
+      await prisma.account.create({
+        data: {
+          id: randomUUID(),
+          accountId: user.id,
+          providerId: "credential",
+          userId: user.id,
+          password: await hashPassword(password),
+        },
+      });
+    }
     await prisma.organizationMembership.upsert({
       where: {
         organizationId_userId: { organizationId: item.org.id, userId: user.id },
@@ -56,7 +78,9 @@ async function main() {
       create: { organizationId: item.org.id, userId: user.id, role: item.role },
     });
   }
-  console.log("Seeded two organizations and four synthetic development users.");
+  console.log(
+    "Seeded two organizations and four synthetic development users without printing credentials.",
+  );
 }
 main()
   .catch((error: unknown) => {

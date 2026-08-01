@@ -7,7 +7,7 @@
 - Environment: `staging`
 - Builder: Railway Railpack/Nixpacks-compatible Node 22 workspace build
 - Build command: `corepack pnpm install --frozen-lockfile && corepack pnpm db:generate && corepack pnpm --filter @atlas/web build`
-- Pre-deploy command: `corepack pnpm db:deploy && corepack pnpm test:integration && corepack pnpm db:seed:staging`
+- Pre-deploy command: `corepack pnpm db:deploy && corepack pnpm exec vitest run tests/integration && corepack pnpm db:seed:staging && corepack pnpm db:verify:staging`
 - Start command: `corepack pnpm --filter @atlas/web start`
 - Health-check path: `/api/health`
 
@@ -17,7 +17,11 @@ The database reference must use Railway private networking. Do not configure `DA
 
 `corepack pnpm db:deploy` applies checked-in Prisma migrations. Migrations run before integration tests and the idempotent, guarded synthetic seed. A failed migration, integration test, or seed blocks the new web deployment.
 
-The staging seed creates four clearly synthetic accounts in one `atlas-staging` organization. Public sign-up is disabled. To add real employees later, an administrator must use a reviewed account-provisioning command that creates an individual credential, active organization membership, explicit role rows, and an audit event; never edit database rows manually or share a password.
+The staging seed creates four clearly synthetic accounts in one `atlas-staging` organization. The verification command signs in as Alex and Blair through Better Auth, checks shared organization visibility and cross-organization denial, and creates or confirms an idempotent synthetic persistence shipment. Public sign-up is disabled. To add real employees later, an administrator must use a reviewed account-provisioning command that creates an individual credential, active organization membership, explicit role rows, and an audit event; never edit database rows manually or share a password.
+
+## Staging login
+
+Open `https://divine-purpose-staging.up.railway.app/sign-in`, enter one synthetic email listed in `CURRENT_STATE.md`, and use the corresponding password stored in that service's Railway variable. Password values are intentionally absent from Git and documentation. Successful login routes the employee to the shared `atlas-staging` organization.
 
 ## Rollback
 
