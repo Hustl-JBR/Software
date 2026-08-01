@@ -5,6 +5,32 @@ import { getSessionUserId } from "@/lib/session";
 import { approve, saveCorrection } from "@/app/actions";
 import { ShipmentForm } from "@/app/ui/shipment-form";
 import { ErrorAlert } from "@/app/ui/error-alert";
+import {
+  DEMO_ORGANIZATION,
+  DEMO_USER,
+  getDemoRequest,
+  isDemoMode,
+} from "@/lib/demo-store";
+
+type ReviewIssue = {
+  id: string;
+  type: string;
+  field: string;
+  message: string;
+  sourceReference?: string | null;
+};
+type ReviewRevision = {
+  id: string;
+  revisionNumber: number;
+  originalText: string;
+  structuredData: Record<string, unknown>;
+  issues: ReviewIssue[];
+  createdAt: Date;
+};
+type ReviewView = {
+  role: string;
+  request: { id: string; loadId?: string; revisions: ReviewRevision[] };
+};
 
 export default async function Review({
   params,
@@ -14,12 +40,367 @@ export default async function Review({
   searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
   const { slug, id } = await params;
+  const view = isDemoMode()
+    ? demoReviewView(slug, id)
+    : await realReviewView(slug, id);
+  if (!view) notFound();
+  const { request, role } = view;
+  if (request.loadId) redirect(`/org/${slug}/loads/${request.loadId}`);
+  const revision = request.revisions[0];
+  const values = revision.structuredData;
+  const query = await searchParams;
+  const valid = revision.issues.length === 0;
+  const confidence = valid
+    ? 100
+    : Math.max(72, 96 - revision.issues.length * 4);
+  return (
+    <>
+      <div className="breadcrumb">
+        <a href={`/org/${slug}`}>Command center</a>
+        <span>/</span>
+        <a href={`/org/${slug}`}>Requests</a>
+        <span>/</span>
+        <strong>{request.id.slice(0, 8)}</strong>
+      </div>
+      <div className="page-heading compact-heading review-heading">
+        <div>
+          <div className="title-line">
+            <p className="overline">
+              Shipment request · Revision {revision.revisionNumber}
+            </p>
+            <span className={`status-pill ${valid ? "green" : "amber"}`}>
+              {valid ? "Ready for approval" : "Action required"}
+            </span>
+          </div>
+          <h1>Review Atlas analysis</h1>
+          <p className="page-subtitle">
+            Atlas structured the request and highlighted what still needs human
+            judgment.
+          </p>
+        </div>
+        <div className="revision-meta">
+          <span>Immutable revision</span>
+          <strong>#{revision.revisionNumber}</strong>
+        </div>
+      </div>
+      <ErrorAlert code={query.error} />
+      {query.saved && (
+        <div className="toast success-toast">
+          <span>✓</span>
+          <div>
+            <b>Revision {revision.revisionNumber} saved</b>
+            <small>
+              All corrections are preserved in the immutable history.
+            </small>
+          </div>
+        </div>
+      )}
+
+      <nav className="content-tabs" aria-label="Shipment sections">
+        <a className="active" href="#overview">
+          Overview
+        </a>
+        <a href="#shipment-details">Shipment details</a>
+        <a href="#approval">Approval</a>
+        <a href="#timeline">Timeline</a>
+        <span>
+          Documents <b>0</b>
+        </span>
+        <span>
+          Communications <b>0</b>
+        </span>
+      </nav>
+
+      <section className="review-grid" id="overview">
+        <div className="review-main">
+          <article className="panel ai-analysis">
+            <div className="analysis-header">
+              <div className="analysis-title">
+                <span className="ai-orb large">✦</span>
+                <div>
+                  <p className="overline violet">Atlas intelligence</p>
+                  <h2>AI shipment analysis</h2>
+                </div>
+              </div>
+              <div className="confidence">
+                <span>Confidence</span>
+                <strong>{confidence}%</strong>
+                <i>
+                  <b style={{ width: `${confidence}%` }} />
+                </i>
+              </div>
+            </div>
+            <div className="shipment-summary">
+              <span className="summary-icon">↗</span>
+              <div>
+                <p>Shipment summary</p>
+                <h3>{summary(values)}</h3>
+              </div>
+            </div>
+            <div className="analysis-facts">
+              <AnalysisFact
+                label="Detected equipment"
+                value={String(values.equipmentType ?? "Not detected").replace(
+                  "DRY_VAN",
+                  "Dry van",
+                )}
+                icon="▣"
+              />
+              <AnalysisFact
+                label="Estimated transit"
+                value="1 day · 248 mi"
+                icon="◷"
+              />
+              <AnalysisFact
+                label="Freight profile"
+                value={`${number(values.palletCount)} pallets · ${number(values.weightPounds)} lb`}
+                icon="◫"
+              />
+            </div>
+            <div className="analysis-columns">
+              <div>
+                <p className="analysis-label">Potential risks</p>
+                <div className="signal-list">
+                  <span className="signal amber">
+                    <i>!</i>
+                    <b>Weight is 62% of dry van capacity</b>
+                  </span>
+                  <span className="signal neutral">
+                    <i>◷</i>
+                    <b>Appointment windows not specified</b>
+                  </span>
+                </div>
+              </div>
+              <div>
+                <p className="analysis-label">Atlas recommendation</p>
+                <div className="recommendation">
+                  <span>✦</span>
+                  <p>
+                    <b>
+                      {valid
+                        ? "Approve this shipment"
+                        : "Complete the missing location details"}
+                    </b>
+                    <small>
+                      {valid
+                        ? "Required data is complete and passes deterministic validation."
+                        : "Atlas needs exact facility and postal data before approval."}
+                    </small>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article className="panel source-panel">
+            <div className="panel-heading">
+              <div>
+                <p className="overline">Source</p>
+                <h2>Original request</h2>
+              </div>
+              <span className="source-chip">Plain text</span>
+            </div>
+            <blockquote>
+              {revision.originalText ||
+                "No plain-English request was supplied."}
+            </blockquote>
+          </article>
+
+          <form
+            action={saveCorrection}
+            className="panel correction-form"
+            id="shipment-details"
+          >
+            <input type="hidden" name="organizationSlug" value={slug} />
+            <input type="hidden" name="requestId" value={id} />
+            <div className="panel-heading">
+              <div>
+                <p className="overline">Human review</p>
+                <h2>Shipment details</h2>
+                <p>
+                  Correct or complete any field. Saving creates a new immutable
+                  revision.
+                </p>
+              </div>
+              <span className="reviewed-by">◉ Reviewed by you</span>
+            </div>
+            <ShipmentForm values={values} />
+            <div className="form-actions">
+              <span>Changes are tracked in the revision history.</span>
+              <button className="button button-secondary" type="submit">
+                Save as new revision
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <aside className="review-aside">
+          <section className={`panel issue-summary ${valid ? "complete" : ""}`}>
+            <div className="issue-summary-head">
+              <span>{valid ? "✓" : revision.issues.length}</span>
+              <div>
+                <h2>{valid ? "Analysis complete" : "Information needed"}</h2>
+                <p>
+                  {valid
+                    ? "Ready for final approval"
+                    : `${revision.issues.length} required fields need attention`}
+                </p>
+              </div>
+            </div>
+            {valid ? (
+              <div className="all-clear">
+                <span>✓</span>
+                <p>
+                  <b>Deterministic validation passed</b>
+                  <small>Every required field has been reviewed.</small>
+                </p>
+              </div>
+            ) : (
+              <div className="modern-issues">
+                {revision.issues.map((issue) => (
+                  <article key={issue.id}>
+                    <span>!</span>
+                    <div>
+                      <b>{fieldLabel(issue.field)}</b>
+                      <p>{issue.message}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+            <a className="jump-link" href="#shipment-details">
+              {valid ? "Review shipment details" : "Complete missing fields"} ↓
+            </a>
+          </section>
+
+          <section className="panel approval-panel" id="approval">
+            <div className="approval-icon">✓</div>
+            <p className="overline">Final action</p>
+            <h2>Approve revision {revision.revisionNumber}</h2>
+            <p>
+              Creates one draft load and two stops. This action is idempotent
+              and fully audited.
+            </p>
+            {role === "APPROVER" ? (
+              <form action={approve}>
+                <input type="hidden" name="organizationSlug" value={slug} />
+                <input type="hidden" name="requestId" value={request.id} />
+                <input type="hidden" name="revisionId" value={revision.id} />
+                <input
+                  type="hidden"
+                  name="idempotencyKey"
+                  value={randomUUID()}
+                />
+                <label className="approval-check">
+                  <input required type="checkbox" />
+                  <span>
+                    <b>I reviewed this exact revision</b>
+                    <small>
+                      Revision {revision.revisionNumber} · {confidence}%
+                      confidence
+                    </small>
+                  </span>
+                </label>
+                <button
+                  className="button button-primary full-button"
+                  type="submit"
+                  disabled={!valid}
+                >
+                  Approve & create draft load <span>→</span>
+                </button>
+                {!valid && (
+                  <small className="disabled-reason">
+                    Complete required fields before approval
+                  </small>
+                )}
+              </form>
+            ) : (
+              <div className="alert warning">
+                Your {role.toLowerCase()} role cannot approve this request.
+              </div>
+            )}
+          </section>
+
+          <section className="panel mini-timeline" id="timeline">
+            <div className="panel-heading">
+              <div>
+                <p className="overline">History</p>
+                <h2>Revision timeline</h2>
+              </div>
+            </div>
+            {request.revisions.map((item, index) => (
+              <div className="mini-event" key={item.id}>
+                <i className={index === 0 ? "current" : ""} />
+                <p>
+                  <b>Revision {item.revisionNumber}</b>
+                  <small>
+                    {item.createdAt.toLocaleString()} · {item.issues.length}{" "}
+                    issue{item.issues.length === 1 ? "" : "s"}
+                  </small>
+                </p>
+                {index === 0 && <span>Current</span>}
+              </div>
+            ))}
+          </section>
+        </aside>
+      </section>
+    </>
+  );
+}
+
+function AnalysisFact({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon: string;
+}) {
+  return (
+    <div>
+      <span>{icon}</span>
+      <p>
+        <small>{label}</small>
+        <b>{value}</b>
+      </p>
+    </div>
+  );
+}
+function number(value: unknown) {
+  return Number(value ?? 0).toLocaleString();
+}
+function summary(values: Record<string, unknown>) {
+  return `Move ${number(values.palletCount)} pallets of ${String(values.commodity ?? "freight").toLowerCase()} from ${String(values.originCity ?? "origin")} to ${String(values.destinationCity ?? "destination")}.`;
+}
+function fieldLabel(field: string) {
+  return field
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (letter) => letter.toUpperCase());
+}
+function demoReviewView(slug: string, id: string): ReviewView | undefined {
+  if (slug !== DEMO_ORGANIZATION.slug) return undefined;
+  const request = getDemoRequest(id);
+  if (!request) return undefined;
+  return {
+    role: DEMO_USER.role,
+    request: {
+      id: request.id,
+      loadId: request.loadId,
+      revisions: request.revisions,
+    },
+  };
+}
+async function realReviewView(
+  slug: string,
+  id: string,
+): Promise<ReviewView | undefined> {
   const userId = await getSessionUserId();
   if (!userId) redirect("/sign-in");
   const membership = await prisma.organizationMembership.findFirst({
     where: { userId, status: "ACTIVE", organization: { slug } },
   });
-  if (!membership) notFound();
+  if (!membership) return undefined;
   const request = await prisma.shipmentRequest.findUnique({
     where: {
       organizationId_id: { organizationId: membership.organizationId, id },
@@ -32,119 +413,16 @@ export default async function Review({
       load: true,
     },
   });
-  if (!request) notFound();
-  if (request.load) redirect(`/org/${slug}/loads/${request.load.id}`);
-  const revision = request.revisions[0];
-  const values = revision.structuredData as Record<string, unknown>;
-  const query = await searchParams;
-  return (
-    <>
-      <a className="back" href={`/org/${slug}`}>
-        ← Dashboard
-      </a>
-      <div className="toolbar">
-        <div>
-          <p className="eyebrow">
-            Human review · Revision {revision.revisionNumber}
-          </p>
-          <h1>Review shipment request</h1>
-          <p className="muted">
-            Corrections create a new immutable revision. Approval binds only the
-            latest exact revision.
-          </p>
-        </div>
-        <span className="badge needs_review">Needs review</span>
-      </div>
-      <ErrorAlert code={query.error} />
-      {query.saved && (
-        <div className="alert success">
-          A new immutable correction revision was saved.
-        </div>
-      )}
-      <section className="source card">
-        <h2>Original request</h2>
-        <p>
-          {revision.originalText || "No plain-English request was supplied."}
-        </p>
-      </section>
-      <section>
-        <h2>Validation issues</h2>
-        {revision.issues.length ? (
-          <div className="issues">
-            {revision.issues.map((issue) => (
-              <article
-                className={`issue ${issue.type.toLowerCase()}`}
-                key={issue.id}
-              >
-                <span>{issue.type}</span>
-                <div>
-                  <strong>{issue.field || "Request"}</strong>
-                  <p>{issue.message}</p>
-                  {issue.sourceReference && (
-                    <small>{issue.sourceReference}</small>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="alert success">
-            This revision passes deterministic validation. Review every value
-            before approving.
-          </div>
-        )}
-      </section>
-      <form action={saveCorrection} className="card">
-        <input type="hidden" name="organizationSlug" value={slug} />
-        <input type="hidden" name="requestId" value={id} />
-        <ShipmentForm values={values} />
-        <button className="secondary" type="submit">
-          Save as new revision
-        </button>
-      </form>
-      <section className="approval card">
-        <p className="eyebrow">Consequential action</p>
-        <h2>Approve exact revision {revision.revisionNumber}</h2>
-        <p>
-          Atlas will validate again and atomically create one draft load, one
-          pickup, one delivery, status history, and audit events.
-        </p>
-        {membership.role === "APPROVER" ? (
-          <form action={approve}>
-            <input type="hidden" name="organizationSlug" value={slug} />
-            <input type="hidden" name="requestId" value={request.id} />
-            <input type="hidden" name="revisionId" value={revision.id} />
-            <input type="hidden" name="idempotencyKey" value={randomUUID()} />
-            <label className="check">
-              <input required type="checkbox" /> I reviewed and approve this
-              exact revision.
-            </label>
-            <button type="submit">Approve and create draft load</button>
-          </form>
-        ) : (
-          <div className="alert warning">
-            Your {membership.role.toLowerCase()} role can correct this request
-            but cannot approve it.
-          </div>
-        )}
-      </section>
-      <section>
-        <h2>Revision history</h2>
-        <div className="timeline">
-          {request.revisions.map((item) => (
-            <div key={item.id}>
-              <i />
-              <p>
-                <strong>Revision {item.revisionNumber}</strong>
-                <small>
-                  {item.createdAt.toLocaleString()} · {item.issues.length}{" "}
-                  issue(s)
-                </small>
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
-    </>
-  );
+  if (!request) return undefined;
+  return {
+    role: membership.role,
+    request: {
+      id: request.id,
+      loadId: request.load?.id,
+      revisions: request.revisions.map((revision) => ({
+        ...revision,
+        structuredData: revision.structuredData as Record<string, unknown>,
+      })),
+    },
+  };
 }

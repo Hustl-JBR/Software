@@ -4,6 +4,8 @@ import { ErrorAlert } from "@/app/ui/error-alert";
 import { submitShipment } from "@/app/actions";
 import { getSessionUserId } from "@/lib/session";
 import { prisma } from "@atlas/db/client";
+import { DEMO_ORGANIZATION, isDemoMode } from "@/lib/demo-store";
+
 export default async function NewRequest({
   params,
   searchParams,
@@ -12,36 +14,136 @@ export default async function NewRequest({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { slug } = await params;
-  const userId = await getSessionUserId();
-  if (!userId) redirect("/sign-in");
-  const membership = await prisma.organizationMembership.findFirst({
-    where: { userId, status: "ACTIVE", organization: { slug } },
-  });
-  if (!membership) notFound();
+  if (isDemoMode()) {
+    if (slug !== DEMO_ORGANIZATION.slug) notFound();
+  } else {
+    const userId = await getSessionUserId();
+    if (!userId) redirect("/sign-in");
+    const membership = await prisma.organizationMembership.findFirst({
+      where: { userId, status: "ACTIVE", organization: { slug } },
+    });
+    if (!membership) notFound();
+  }
   return (
     <>
-      <a className="back" href={`/org/${slug}`}>
-        ← Dashboard
-      </a>
-      <p className="eyebrow">Shipment intake</p>
-      <h1>New shipment request</h1>
-      <p className="muted lead">
-        Enter plain English, structured facts, or both. Atlas will never guess
-        required information.
-      </p>
+      <div className="breadcrumb">
+        <a href={`/org/${slug}`}>Command center</a>
+        <span>/</span>
+        <strong>New shipment</strong>
+      </div>
+      <div className="page-heading compact-heading">
+        <div>
+          <p className="overline">AI-assisted intake</p>
+          <h1>Create a shipment</h1>
+          <p className="page-subtitle">
+            Describe the move naturally. Atlas will structure it, flag gaps, and
+            keep you in control.
+          </p>
+        </div>
+        <span className="secure-note">
+          <i>✓</i> No external services
+        </span>
+      </div>
       <ErrorAlert code={(await searchParams).error} />
-      <form action={submitShipment}>
+      <form action={submitShipment} className="intake-layout">
         <input type="hidden" name="organizationSlug" value={slug} />
-        <label>
-          Plain-English request
-          <textarea
-            name="originalText"
-            rows={6}
-            placeholder="Customer: Acme Foods; pickup: 2026-08-10; delivery: 2026-08-12; commodity: canned goods; weight: 38,000 lbs..."
-          />
-        </label>
-        <ShipmentForm />
-        <button type="submit">Extract and review</button>
+        <div className="intake-main">
+          <section className="ai-composer panel">
+            <div className="composer-heading">
+              <span className="ai-orb large">✦</span>
+              <div>
+                <h2>Tell Atlas about the shipment</h2>
+                <p>
+                  Paste an email, type a request, or use your own shorthand.
+                </p>
+              </div>
+            </div>
+            <label className="composer-field">
+              <span className="sr-only">Plain-English shipment request</span>
+              <textarea
+                name="originalText"
+                rows={8}
+                autoFocus
+                placeholder="Move 18 pallets of packaged furniture from Nashville, Tennessee to Atlanta, Georgia. Pickup is August 5, 2026…"
+              />
+            </label>
+            <div className="composer-footer">
+              <span>
+                <kbd>⌘</kbd>
+                <kbd>↵</kbd> to analyze
+              </span>
+              <span>Atlas never guesses required data</span>
+            </div>
+          </section>
+          <details className="known-details panel">
+            <summary>
+              <span>
+                <i>＋</i>
+                <b>Add known shipment details</b>
+              </span>
+              <small>Optional · Atlas will extract what it can</small>
+            </summary>
+            <ShipmentForm compact />
+          </details>
+          <div className="sticky-action-bar">
+            <a className="button button-ghost" href={`/org/${slug}`}>
+              Cancel
+            </a>
+            <button
+              className="button button-primary analyze-button"
+              type="submit"
+            >
+              <span>✦</span> Analyze shipment <b>→</b>
+            </button>
+          </div>
+        </div>
+        <aside className="intake-aside">
+          <section className="panel help-card">
+            <p className="overline violet">How it works</p>
+            <ol>
+              <li>
+                <span>1</span>
+                <div>
+                  <b>Describe the freight</b>
+                  <small>Use the language you already use.</small>
+                </div>
+              </li>
+              <li>
+                <span>2</span>
+                <div>
+                  <b>Atlas structures it</b>
+                  <small>Deterministic extraction, no guessing.</small>
+                </div>
+              </li>
+              <li>
+                <span>3</span>
+                <div>
+                  <b>You stay in control</b>
+                  <small>Review every field before approval.</small>
+                </div>
+              </li>
+            </ol>
+          </section>
+          <section className="panel example-card">
+            <span className="eyebrow-icon">↗</span>
+            <p className="overline">Example</p>
+            <p>
+              “Pick up 22 pallets of paper goods in Knoxville on Friday and
+              deliver to Charlotte Monday. 31,500 pounds, dry van.”
+            </p>
+            <span className="inline-action">Use this structure as a guide</span>
+          </section>
+          <div className="privacy-note">
+            <span>◈</span>
+            <p>
+              <b>Private by design</b>
+              <small>
+                Demo data stays in this local session and resets when the server
+                restarts.
+              </small>
+            </p>
+          </div>
+        </aside>
       </form>
     </>
   );

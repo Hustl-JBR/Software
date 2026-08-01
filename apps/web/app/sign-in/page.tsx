@@ -1,9 +1,12 @@
 import { signIn } from "../actions";
+import { DEMO_ORGANIZATION, isDemoMode } from "@/lib/demo-store";
+import { redirect } from "next/navigation";
 export default async function SignIn({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
+  if (isDemoMode()) redirect(`/org/${DEMO_ORGANIZATION.slug}`);
   const error = (await searchParams).error;
   return (
     <section className="auth card">

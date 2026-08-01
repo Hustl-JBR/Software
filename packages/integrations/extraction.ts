@@ -25,7 +25,9 @@ const patterns: Record<string, RegExp> = {
   deliveryDate: /delivery(?: date)?:\s*(\d{4}-\d{2}-\d{2})/i,
 };
 
-export class DeterministicMockExtractionAdapter implements ShipmentExtractionAdapter {
+export class DeterministicMockExtractionAdapter
+  implements ShipmentExtractionAdapter
+{
   async extract(input: {
     originalText: string;
     structured: Record<string, unknown>;

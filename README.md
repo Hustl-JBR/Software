@@ -73,6 +73,25 @@ The seed command refuses to run unless `SEED_DEVELOPMENT_DATA=true`. The example
 
 Open `http://localhost:3000` after the development server reports that it is ready.
 
+### Browser-only demo mode
+
+Demo mode skips authentication and PostgreSQL while preserving the real backend path for later verification. It stores synthetic shipment requests, revisions, loads, stops, and audit events only in the running Next.js process. All demo data is discarded when the server restarts.
+
+PowerShell:
+
+```powershell
+$env:ATLAS_DEMO_MODE="true"
+pnpm dev
+```
+
+Bash or zsh:
+
+```bash
+ATLAS_DEMO_MODE=true pnpm dev
+```
+
+Open `http://localhost:3000`. Atlas redirects directly to the synthetic Atlas North dashboard and labels every screen `DEMO MODE`. Unset the variable to restore the normal authentication and PostgreSQL behavior.
+
 ### Windows PowerShell
 
 Install Git, Node.js 22 LTS, and Docker Desktop first. Ensure Docker Desktop is running and configured for Linux containers. Then open PowerShell in the repository root:

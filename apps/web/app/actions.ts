@@ -9,6 +9,14 @@ import {
   createShipmentRequest,
 } from "@atlas/db/commands";
 import { createSession, clearSession, getSessionUserId } from "@/lib/session";
+import {
+  approveDemoRevision,
+  correctDemoShipment,
+  createDemoShipment,
+  DEMO_ORGANIZATION,
+  DEMO_USER,
+  isDemoMode,
+} from "@/lib/demo-store";
 
 function value(form: FormData, key: string) {
   return String(form.get(key) ?? "").trim();
@@ -54,12 +62,14 @@ function candidate(form: FormData) {
   return result;
 }
 async function user() {
+  if (isDemoMode()) return DEMO_USER.id;
   const id = await getSessionUserId();
   if (!id) redirect("/sign-in");
   return id;
 }
 
 export async function signIn(form: FormData) {
+  if (isDemoMode()) redirect(`/org/${DEMO_ORGANIZATION.slug}`);
   const email = value(form, "email");
   try {
     const found = await prisma.user.findUnique({
@@ -82,17 +92,21 @@ export async function signIn(form: FormData) {
   }
 }
 export async function signOut() {
+  if (isDemoMode()) redirect(`/org/${DEMO_ORGANIZATION.slug}`);
   await clearSession();
   redirect("/sign-in");
 }
 export async function submitShipment(form: FormData) {
   const organizationSlug = value(form, "organizationSlug");
   try {
-    const result = await createShipmentRequest(await user(), {
+    const input = {
       organizationSlug,
       originalText: value(form, "originalText"),
       structured: candidate(form),
-    });
+    };
+    const result = isDemoMode()
+      ? createDemoShipment(input)
+      : await createShipmentRequest(await user(), input);
     redirect(`/org/${organizationSlug}/requests/${result.requestId}`);
   } catch (error) {
     redirectWithSafeError(`/org/${organizationSlug}/requests/new`, error);
@@ -102,12 +116,16 @@ export async function saveCorrection(form: FormData) {
   const organizationSlug = value(form, "organizationSlug");
   const requestId = value(form, "requestId");
   try {
-    await correctShipmentRequest(
-      await user(),
-      organizationSlug,
-      requestId,
-      candidate(form),
-    );
+    if (isDemoMode()) {
+      correctDemoShipment(organizationSlug, requestId, candidate(form));
+    } else {
+      await correctShipmentRequest(
+        await user(),
+        organizationSlug,
+        requestId,
+        candidate(form),
+      );
+    }
     redirect(`/org/${organizationSlug}/requests/${requestId}?saved=1`);
   } catch (error) {
     redirectWithSafeError(
@@ -121,12 +139,14 @@ export async function approve(form: FormData) {
   const revisionId = value(form, "revisionId");
   const requestId = value(form, "requestId");
   try {
-    const loadId = await approveRevision(
-      await user(),
-      organizationSlug,
-      revisionId,
-      value(form, "idempotencyKey") || randomUUID(),
-    );
+    const loadId = isDemoMode()
+      ? approveDemoRevision(organizationSlug, revisionId)
+      : await approveRevision(
+          await user(),
+          organizationSlug,
+          revisionId,
+          value(form, "idempotencyKey") || randomUUID(),
+        );
     redirect(`/org/${organizationSlug}/loads/${loadId}`);
   } catch (error) {
     const message = error instanceof Error ? error.message : "";

@@ -1,15 +1,58 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+generator client {
+  provider = "prisma-client-js"
+}
 
-enum MembershipRole { OPERATOR APPROVER VIEWER }
-enum MembershipStatus { ACTIVE SUSPENDED }
-enum ShipmentRequestStatus { NEEDS_REVIEW APPROVED }
-enum IssueType { MISSING CONFLICTING UNCERTAIN INVALID UNSUPPORTED }
-enum ApprovalStatus { ACCEPTED }
-enum LoadStatus { DRAFT }
-enum StopType { PICKUP DELIVERY }
-enum ActorType { USER SYSTEM }
-enum IdempotencyStatus { IN_PROGRESS COMPLETED }
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MembershipRole {
+  OPERATOR
+  APPROVER
+  VIEWER
+}
+
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum ShipmentRequestStatus {
+  NEEDS_REVIEW
+  APPROVED
+}
+
+enum IssueType {
+  MISSING
+  CONFLICTING
+  UNCERTAIN
+  INVALID
+  UNSUPPORTED
+}
+
+enum ApprovalStatus {
+  ACCEPTED
+}
+
+enum LoadStatus {
+  DRAFT
+}
+
+enum StopType {
+  PICKUP
+  DELIVERY
+}
+
+enum ActorType {
+  USER
+  SYSTEM
+}
+
+enum IdempotencyStatus {
+  IN_PROGRESS
+  COMPLETED
+}
 
 model Organization {
   id String @id @default(uuid()) @db.Uuid
@@ -133,6 +176,7 @@ model ApprovalRequest {
   approvedBy User @relation(fields: [approvedById], references: [id])
   createdAt DateTime @default(now()) @map("created_at")
   @@unique([organizationId, id])
+  @@unique([organizationId, revisionId])
   @@map("approval_requests")
 }
 
@@ -157,6 +201,8 @@ model Load {
   statusHistory LoadStatusHistory[]
   createdAt DateTime @default(now()) @map("created_at")
   @@unique([organizationId, id])
+  @@unique([organizationId, shipmentRequestId])
+  @@unique([organizationId, approvedRevisionId])
   @@unique([organizationId, loadNumber])
   @@map("loads")
 }
