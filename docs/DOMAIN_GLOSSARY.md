@@ -1,11 +1,14 @@
 # Domain glossary
 
-- **Carrier**: Motor carrier responsible for moving a load.
-- **Driver**: Person operating the tractor for a shipment-limited assignment.
+- **Carrier**: Motor carrier or owner-operator business Atlas sources, reviews, negotiates with, and selects to move a load. Carrier selection is a commercial and compliance decision.
+- **Owner-operator**: A business operator who may be both the selected carrier and the assigned driver. The carrier record and driver assignment remain separate concepts even when one person fills both roles.
+- **Driver**: Person the selected carrier assigns to operate the tractor for a shipment-limited load. Atlas records the driver after carrier selection; Atlas is not a driver-recruiting marketplace.
 - **Dispatcher**: Carrier representative coordinating driver operations.
 - **Load**: Operational record created from an approved shipment revision.
 - **Stop**: Sequenced pickup or delivery facility visit.
 - **Tender**: Offer of a load to a carrier.
+- **Carrier sourcing**: Identifying carrier candidates, reviewing carrier identity, authority, insurance, suitability, and commercial terms, then selecting an approved carrier.
+- **Driver assignment**: Recording the driver, dispatcher, tractor, trailer, and tracking details supplied by the selected carrier.
 - **Rate confirmation**: Commercial agreement describing carrier compensation.
 - **BOL**: Bill of lading; shipment document issued at pickup.
 - **POD**: Proof of delivery.

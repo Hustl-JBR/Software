@@ -2,6 +2,8 @@
 
 Last verified: 2026-07-31. Branch: `codex/create-initial-documentation-and-project-plan`.
 
+Published approved demo baseline: commit `9a178c7`, remote branch `origin/codex/create-initial-documentation-and-project-plan`, draft pull request [#1](https://github.com/Hustl-JBR/Software/pull/1). The four approved demo commits were published without rewriting history on 2026-07-31.
+
 Important commits: `7402aaf` establishes the approved demo foundation; `8057364` adds connected demo load operations; `66952d3` connects the demo operations workspaces and safety boundaries; the current documentation/test commit records the verified handoff; `c7f57aa` hardens vertical-slice verification; `fd60f6f` implements reviewed shipment intake.
 
 ## What works
@@ -9,6 +11,8 @@ Important commits: `7402aaf` establishes the approved demo foundation; `8057364`
 Demo mode supports sign-in bypass, intake, deterministic extraction, correction, exact-revision approval, draft-load creation, a 12-load workspace, attention queue, synthetic tracking and ETA simulation, delay propagation, exceptions, unsent communication drafts, stops, documents, financials, pricing, carrier sourcing, global tracking, Network, Analytics, Documents, Settings, carrier profiles, and masked load contacts. Sensitive contact reveals create demo audit events, logged calls appear in communications, interrupted tracking creates shared command-center attention, and carrier selection is blocked for unresolved insurance or insufficient cargo coverage.
 
 The real backend still contains Prisma/PostgreSQL shipment intake, tenant authorization, idempotent approval, immutable revisions, audit events, migrations, seed data, and integration tests. Demo work does not replace those paths.
+
+Permanent freight-domain boundary: Atlas sources, reviews, negotiates with, and selects a motor carrier or owner-operator business. Only after carrier selection does that carrier assign a driver and provide dispatcher, tractor, trailer, and tracking details. Carrier selection and driver assignment remain separate even when the driver is also the owner-operator. Atlas is not a driver-recruiting marketplace.
 
 ## Demo-only and limitations
 
@@ -39,4 +43,4 @@ corepack pnpm dev
 
 Unit tests cover domain validation, extraction, demo intake/idempotency, operations-data consistency, navigation state, privacy helpers, and carrier-compliance boundaries. The demo Playwright suite covers every sidebar route, direct loading, active state, browser history, controlled not-found handling, contact masking/reveal/call logging, shared tracking attention, carrier blocking, and console cleanliness. CI also defines formatting, lint, Prisma generation/deployment, type checking, unit/integration tests, build, and Playwright. Last verification: formatting, lint, type checking, 22 unit tests, 12 demo browser tests, demo production build, and a clean in-app browser walkthrough passed.
 
-Exact next recommended task: extend the typed browser-session model for driver profiles, facility appointments, tasks, and settings/document mutations before any production integration.
+Exact next recommended task: audit Railway access and the existing real Prisma/authentication seams, then design the explicit demo-versus-real provider boundary and persistent four-employee staging workflow without creating production infrastructure.
