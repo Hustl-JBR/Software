@@ -58,14 +58,11 @@ test("sign in, review extraction, correct, approve, and view a draft load", asyn
     .getByRole("button", { name: "Approve and create draft load" })
     .click();
 
-  await expect(page.getByText("Draft load created")).toBeVisible();
-  await expect(page.getByText("Stop 1 · PICKUP")).toBeVisible();
+  await expect(page.getByText("Persistent load operations")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Stops · 2" })).toBeVisible();
   await expect(page.getByText("E2E Chicago Plant")).toBeVisible();
-  await expect(page.getByText("Stop 2 · DELIVERY")).toBeVisible();
   await expect(page.getByText("E2E Dallas DC")).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Immutable audit timeline" }),
-  ).toBeVisible();
-  await expect(page.getByText("DRAFT LOAD CREATED")).toBeVisible();
-  await expect(page.getByText("STOPS CREATED")).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Audit ·/ })).toBeVisible();
+  await expect(page.getByText("DRAFT_LOAD_CREATED")).toBeVisible();
+  await expect(page.getByText("LOAD_STOPS_CREATED")).toBeVisible();
 });
