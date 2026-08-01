@@ -52,3 +52,5 @@ The branch now contains a deployable minimal staging slice: Better Auth email/pa
 Consequential quote approval, acceptance, load approval, and carrier selection use idempotency records. Quote approval enforces creator/approver separation. Unconfirmed authority/insurance or synthetic cargo coverage below $100,000 blocks carrier selection. No check is represented as official verification.
 
 Local verification on Node 24: formatting, ESLint, strict TypeScript, 22 unit tests, 12 demo Playwright tests, and a demo production build pass. PostgreSQL migration/integration tests and persistent authenticated Playwright tests await the private Railway staging database and deployment. Demo mode remains browser-only and PostgreSQL-free.
+
+Railway's initial security gate rejected the inherited `next@15.4.5` before build execution because of published critical advisories. The branch now pins the patched `next@15.4.10` maintenance release required by Railway.

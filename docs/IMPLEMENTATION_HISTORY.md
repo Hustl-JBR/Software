@@ -13,5 +13,6 @@
 11. The persistent staging foundation added Better Auth credential accounts and database sessions, active-user checks, multiple organization roles, guarded four-account synthetic seeding, a health route, and an isolated PostgreSQL-backed operations workspace.
 12. The staging domain model now persists customer calls, quote approval/acceptance, manual carrier candidates and hard qualification blocks, carrier selection, driver/dispatcher assignment, stop confirmation, load ownership/next action, manual tracking, communications, tasks, and append-only audit events. Consequential commands use idempotency and quote approval enforces separation of duties.
 13. Railway deployment, environment-variable, infrastructure, cost, backup/recovery, rollback, and teardown documentation was added before provisioning.
+14. Railway's dependency security gate blocked the inherited Next.js 15.4.5 baseline before execution; Atlas upgraded to the patched Next.js 15.4.10 maintenance release without changing demo or staging behavior.
 
 Verification performed through the pre-deployment staging phase includes formatting, lint, strict type checking, 22 unit tests, 12 demo browser tests, and a demo production build. PostgreSQL integration and authenticated staging verification remain deployment gates.
