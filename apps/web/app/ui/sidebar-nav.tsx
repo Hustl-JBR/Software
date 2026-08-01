@@ -2,22 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
 import {
-  demoNavigation,
+  atlasNavigation,
   navigationIsActive,
-  workspaceNavigation,
+  type AtlasNavigationItem,
 } from "@/lib/demo-navigation";
 
-export function SidebarNav() {
+export function SidebarNav({
+  slug,
+  loadCount,
+}: {
+  slug: string;
+  loadCount?: number;
+}) {
   const pathname = usePathname();
-  const item = (entry: {
-    label: string;
-    icon: string;
-    href: string;
-    count?: string;
-    exact?: boolean;
-  }) => {
+  const navigation = atlasNavigation(slug, loadCount);
+  const item = (entry: AtlasNavigationItem) => {
     const active = navigationIsActive(pathname, entry.href, entry.exact);
     return (
       <Link
@@ -32,14 +32,14 @@ export function SidebarNav() {
     );
   };
   return (
-    <>
+    <div className="sidebar-navigation">
       <nav className="primary-nav" aria-label="Primary navigation">
-        {demoNavigation.map(item)}
+        {navigation.primary.map(item)}
       </nav>
       <div className="sidebar-section">
         <p>Workspace</p>
-        {workspaceNavigation.map(item)}
+        {navigation.workspace.map(item)}
       </div>
-    </>
+    </div>
   );
 }

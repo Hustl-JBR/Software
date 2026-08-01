@@ -1,10 +1,29 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
+import { prisma } from "@atlas/db/client";
+import {
+  EnvironmentChip,
+  InactiveState,
+  StatusBadge,
+} from "@/app/ui/atlas-primitives";
+import { isDemoMode } from "@/lib/demo-store";
+import { requireStagingWorkspace } from "@/lib/staging-workspace";
+import { money, relativeTime } from "@/lib/atlas-view-models";
 export default async function CarrierProfile({
   params,
 }: {
-  params: Promise<{ carrier: string }>;
+  params: Promise<{ slug: string; carrier: string }>;
 }) {
-  const { carrier } = await params;
+  const { slug, carrier } = await params;
+  if (!isDemoMode()) {
+    const { membership } = await requireStagingWorkspace(slug);
+    const candidate = await prisma.carrierCandidate.findFirst({
+      where: { id: carrier, organizationId: membership.organizationId },
+      include: { load: true, driverAssignment: true },
+    });
+    if (!candidate) notFound();
+    return <StagingCarrierProfile slug={slug} candidate={candidate} />;
+  }
   const name = carrier
     .split("-")
     .map((part) => part[0]?.toUpperCase() + part.slice(1))
@@ -182,6 +201,145 @@ export default async function CarrierProfile({
               ["Do not use", "No"],
               ["Last verified", "Today · synthetic review"],
             ]}
+          />
+        </section>
+      </div>
+    </>
+  );
+}
+
+function StagingCarrierProfile({
+  slug,
+  candidate,
+}: {
+  slug: string;
+  candidate: {
+    carrierName: string;
+    status: string;
+    authorityConfirmed: boolean;
+    insuranceConfirmed: boolean;
+    cargoCoverageCents: bigint | null;
+    quotedCostCents: bigint | null;
+    blockReason: string | null;
+    selectedAt: Date | null;
+    updatedAt: Date;
+    load: { id: string; loadNumber: string };
+    driverAssignment: {
+      driverName: string;
+      dispatcherName: string;
+      tractorNumber: string | null;
+      trailerNumber: string | null;
+    } | null;
+  };
+}) {
+  const verified =
+    candidate.authorityConfirmed &&
+    candidate.insuranceConfirmed &&
+    !candidate.blockReason;
+  return (
+    <>
+      <div className="breadcrumb">
+        <Link href={`/org/${slug}/network`}>Network</Link>
+        <span>/</span>
+        <strong>{candidate.carrierName}</strong>
+      </div>
+      <div className="page-heading">
+        <div>
+          <p className="overline">Persisted carrier candidate</p>
+          <h1>{candidate.carrierName}</h1>
+          <p className="page-subtitle">
+            Evidence recorded during this organization’s load sourcing workflow.{" "}
+            <EnvironmentChip mode="staging" />
+          </p>
+        </div>
+        <StatusBadge
+          label={candidate.status}
+          tone={verified ? "green" : "amber"}
+        />
+      </div>
+      <div className="carrier-profile-layout">
+        <section className="panel profile-section">
+          <div className="panel-heading">
+            <div>
+              <p className="overline">Compliance evidence</p>
+              <h2>Recorded checks</h2>
+            </div>
+            <span>Not official FMCSA data</span>
+          </div>
+          <ProfileGrid
+            values={[
+              [
+                "Authority",
+                candidate.authorityConfirmed ? "Confirmed" : "Unconfirmed",
+              ],
+              [
+                "Insurance",
+                candidate.insuranceConfirmed ? "Confirmed" : "Unconfirmed",
+              ],
+              [
+                "Cargo coverage",
+                money(
+                  candidate.cargoCoverageCents === null
+                    ? undefined
+                    : Number(candidate.cargoCoverageCents),
+                ),
+              ],
+              ["Review result", candidate.blockReason ?? candidate.status],
+              ["Last reviewed", relativeTime(candidate.updatedAt)],
+            ]}
+          />
+        </section>
+        <section className="panel profile-section">
+          <div className="panel-heading">
+            <div>
+              <p className="overline">Current relationship</p>
+              <h2>Load assignment</h2>
+            </div>
+          </div>
+          <ProfileGrid
+            values={[
+              ["Load", candidate.load.loadNumber],
+              [
+                "Selected",
+                candidate.selectedAt
+                  ? relativeTime(candidate.selectedAt)
+                  : "Not selected",
+              ],
+              [
+                "Quoted cost",
+                money(
+                  candidate.quotedCostCents === null
+                    ? undefined
+                    : Number(candidate.quotedCostCents),
+                ),
+              ],
+              [
+                "Driver",
+                candidate.driverAssignment?.driverName ?? "Not assigned",
+              ],
+              [
+                "Dispatcher",
+                candidate.driverAssignment?.dispatcherName ?? "Not assigned",
+              ],
+              [
+                "Equipment",
+                candidate.driverAssignment
+                  ? `${candidate.driverAssignment.tractorNumber ?? "Tractor not recorded"} / ${candidate.driverAssignment.trailerNumber ?? "Trailer not recorded"}`
+                  : "Not recorded",
+              ],
+            ]}
+          />
+          <Link
+            className="button button-secondary"
+            href={`/org/${slug}/loads/${candidate.load.id}`}
+          >
+            Open load operations
+          </Link>
+        </section>
+        <section className="panel profile-section">
+          <InactiveState
+            title="External carrier intelligence is not active"
+            body="Atlas has not connected official authority, insurance, safety, banking, or performance data providers. Unrecorded evidence stays unavailable."
           />
         </section>
       </div>

@@ -14,7 +14,8 @@ export default async function NewRequest({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { slug } = await params;
-  if (isDemoMode()) {
+  const demo = isDemoMode();
+  if (demo) {
     if (slug !== DEMO_ORGANIZATION.slug) notFound();
   } else {
     const userId = await getSessionUserId();
@@ -33,11 +34,13 @@ export default async function NewRequest({
       </div>
       <div className="page-heading compact-heading">
         <div>
-          <p className="overline">AI-assisted intake</p>
+          <p className="overline">
+            {demo ? "Guided demo intake" : "Human-reviewed intake"}
+          </p>
           <h1>Create a shipment</h1>
           <p className="page-subtitle">
-            Describe the move naturally. Atlas will structure it, flag gaps, and
-            keep you in control.
+            Describe the move naturally. Atlas deterministically structures it,
+            flags gaps, and keeps approval with your team.
           </p>
         </div>
         <span className="secure-note">
@@ -138,8 +141,9 @@ export default async function NewRequest({
             <p>
               <b>Private by design</b>
               <small>
-                Demo data stays in this local session and resets when the server
-                restarts.
+                {demo
+                  ? "Demo data stays in this local session and resets when the server restarts."
+                  : "Submitted staging requests persist inside this organization and remain subject to tenant and role checks."}
               </small>
             </p>
           </div>

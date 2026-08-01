@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { isDemoMode } from "@/lib/demo-store";
 import { SidebarNav } from "@/app/ui/sidebar-nav";
+import { getSessionUserId } from "@/lib/session";
+import { prisma } from "@atlas/db/client";
 
 import "./styles.css";
 
@@ -9,11 +11,41 @@ export const metadata = {
   description: "Human-reviewed freight operations",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const demo = isDemoMode();
-  const commandHref = demo ? "/org/atlas-north" : "/";
+  const userId = demo ? null : await getSessionUserId();
+  const membership = userId
+    ? await prisma.organizationMembership.findFirst({
+        where: { userId, status: "ACTIVE", user: { active: true } },
+        include: { organization: true, user: true },
+      })
+    : null;
+  const slug = demo ? "atlas-north" : membership?.organization.slug;
+  const commandHref = slug ? `/org/${slug}` : "/sign-in";
+  const loadCount = membership
+    ? await prisma.load.count({
+        where: { organizationId: membership.organizationId },
+      })
+    : demo
+      ? 12
+      : undefined;
+  const profile = demo
+    ? { name: "Demo Approver", organization: "Atlas North", initials: "DA" }
+    : membership
+      ? {
+          name: membership.user.name,
+          organization: membership.organization.name,
+          initials: membership.user.name
+            .split(" ")
+            .map((part: string) => part[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase(),
+        }
+      : null;
+
   return (
     <html lang="en">
       <body>
@@ -24,38 +56,39 @@ export default function RootLayout({
                 <span className="brand-mark">A</span>
                 <span className="brand-word">ATLAS</span>
               </Link>
-              {demo && <span className="demo-label">DEMO MODE</span>}
-            </div>
-            {demo ? (
-              <SidebarNav />
-            ) : (
-              <nav className="primary-nav">
-                <Link className="nav-item active" href={commandHref}>
-                  <span className="nav-icon">⌂</span> Command center
-                </Link>
-              </nav>
-            )}
-            <div className="sidebar-profile">
-              <span className="avatar">DA</span>
-              <span>
-                <strong>Demo Approver</strong>
-                <small>Atlas North</small>
+              <span className={`demo-label ${demo ? "" : "staging-label"}`}>
+                {demo ? "DEMO" : "STAGING"}
               </span>
-              <span className="presence" title="Online" />
             </div>
+            {slug && <SidebarNav slug={slug} loadCount={loadCount} />}
+            {profile && (
+              <div className="sidebar-profile">
+                <span className="avatar">{profile.initials}</span>
+                <span>
+                  <strong>{profile.name}</strong>
+                  <small>{profile.organization}</small>
+                </span>
+                <span className="presence" title="Online" />
+              </div>
+            )}
           </aside>
           <div className="workspace">
             <header className="topbar">
-              <div className="global-search">
+              <div className="global-search" aria-label="Search availability">
                 ⌕ <span>Search loads, customers, lanes…</span>
-                <kbd>⌘ K</kbd>
+                <kbd>Ctrl K</kbd>
               </div>
               <div className="topbar-actions">
                 <span className="system-status">
-                  <i /> All systems operational
+                  <i />{" "}
+                  {demo ? "Demo systems ready" : "Persistent staging online"}
                 </span>
-                <button className="icon-button" aria-label="Notifications">
-                  ♢<span className="notification-dot" />
+                <button
+                  className="icon-button"
+                  aria-label="Notifications"
+                  disabled
+                >
+                  ◇
                 </button>
               </div>
             </header>

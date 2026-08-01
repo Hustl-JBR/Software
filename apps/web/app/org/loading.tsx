@@ -4,7 +4,7 @@ export default function OrganizationLoading() {
       <span />
       <div>
         <strong>Loading Atlas workspace</strong>
-        <small>Preparing synthetic operations data…</small>
+        <small>Preparing your operations workspace…</small>
       </div>
     </div>
   );

@@ -1,10 +1,9 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 import { prisma } from "@atlas/db/client";
 import { getSessionUserId } from "@/lib/session";
-import { signOut } from "../../actions";
 import { ErrorAlert } from "@/app/ui/error-alert";
 import { AttentionQueue } from "@/app/ui/attention-queue";
+import { StagingCommandCenter } from "@/app/ui/staging-command-center";
 import {
   DEMO_ORGANIZATION,
   DEMO_USER,
@@ -74,65 +73,16 @@ export default async function Dashboard({
     include: { organization: true, user: true },
   });
   if (!membership) notFound();
-  const requests = await prisma.shipmentRequest.findMany({
-    where: { organizationId: membership.organizationId },
-    include: {
-      revisions: { orderBy: { revisionNumber: "desc" }, take: 1 },
-      load: true,
-    },
-    orderBy: { createdAt: "desc" },
-    take: 20,
-  });
   return (
-    <>
-      <PageHeading
-        slug={slug}
-        name={membership.organization.name}
-        subtitle={`Signed in as ${membership.user.name} · ${membership.role}`}
-      />
-      <ErrorAlert code={(await searchParams).error} />
-      <section className="panel request-panel">
-        <div className="panel-heading">
-          <div>
-            <p className="overline">PostgreSQL workspace</p>
-            <h2>Persistent staging operations</h2>
-          </div>
-          <Link className="primary-button" href={`/org/${slug}/staging`}>
-            Open staging workspace
-          </Link>
-        </div>
-      </section>
-      <section className="panel request-panel">
-        <div className="panel-heading">
-          <div>
-            <p className="overline">Intake queue</p>
-            <h2>Shipment requests</h2>
-          </div>
-        </div>
-        <div className="load-table">
-          {requests.map((request) => (
-            <a
-              className="table-row"
-              href={
-                request.load
-                  ? `/org/${slug}/loads/${request.load.id}`
-                  : `/org/${slug}/requests/${request.id}`
-              }
-              key={request.id}
-            >
-              <strong>Request {request.id.slice(0, 8)}</strong>
-              <span>Revision {request.currentRevisionNumber}</span>
-              <span className={`status-pill ${request.status.toLowerCase()}`}>
-                {request.status.replace("_", " ")}
-              </span>
-            </a>
-          ))}
-        </div>
-      </section>
-      <form action={signOut}>
-        <button className="text-button">Sign out</button>
-      </form>
-    </>
+    <StagingCommandCenter
+      slug={slug}
+      organizationId={membership.organizationId}
+      organizationName={membership.organization.name}
+      userId={userId}
+      userName={membership.user.name}
+      role={membership.role}
+      error={(await searchParams).error}
+    />
   );
 }
 

@@ -1,9 +1,13 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { prisma } from "@atlas/db/client";
-import { getSessionUserId } from "@/lib/session";
 import { DEMO_ORGANIZATION, getDemoLoad, isDemoMode } from "@/lib/demo-store";
 import { initialOperationsDemoState } from "@/lib/operations-demo-data";
 import { DemoLoadOperations } from "@/app/ui/demo-load-operations";
+import {
+  StagingLoadOperations,
+  type StagingLoadOperationsView,
+} from "@/app/ui/staging-load-operations";
+import { requireStagingWorkspace } from "@/lib/staging-workspace";
 
 type LoadView = {
   id: string;
@@ -40,6 +44,11 @@ export default async function LoadDetail({
   params: Promise<{ slug: string; id: string }>;
 }) {
   const { slug, id } = await params;
+  if (!isDemoMode()) {
+    const stagingLoad = await stagingLoadView(slug, id);
+    if (!stagingLoad) notFound();
+    return <StagingLoadOperations slug={slug} load={stagingLoad} />;
+  }
   if (
     isDemoMode() &&
     slug === DEMO_ORGANIZATION.slug &&
@@ -47,9 +56,7 @@ export default async function LoadDetail({
   ) {
     return <DemoLoadOperations loadId={id} slug={slug} />;
   }
-  const load = isDemoMode()
-    ? demoLoadView(slug, id)
-    : await realLoadView(slug, id);
+  const load = demoLoadView(slug, id);
   if (!load) notFound();
   return (
     <>
@@ -433,50 +440,131 @@ function demoLoadView(slug: string, id: string): LoadView | undefined {
   if (slug !== DEMO_ORGANIZATION.slug) return undefined;
   return getDemoLoad(id);
 }
-async function realLoadView(
+async function stagingLoadView(
   slug: string,
   id: string,
-): Promise<LoadView | undefined> {
-  const userId = await getSessionUserId();
-  if (!userId) redirect("/sign-in");
-  const membership = await prisma.organizationMembership.findFirst({
-    where: { userId, status: "ACTIVE", organization: { slug } },
-  });
-  if (!membership) return undefined;
+): Promise<StagingLoadOperationsView | undefined> {
+  const { membership } = await requireStagingWorkspace(slug);
+  const organizationId = membership.organizationId;
   const load = await prisma.load.findUnique({
-    where: {
-      organizationId_id: { organizationId: membership.organizationId, id },
-    },
+    where: { organizationId_id: { organizationId, id } },
     include: {
       customer: true,
+      primaryOwner: true,
       stops: { orderBy: { sequence: "asc" } },
-      statusHistory: true,
-      approvedRevision: true,
+      carrierCandidates: { orderBy: { createdAt: "asc" } },
+      driverAssignment: true,
+      trackingUpdates: { orderBy: { occurredAt: "desc" } },
+      communications: { orderBy: { occurredAt: "desc" } },
+      tasks: { include: { assignee: true }, orderBy: { createdAt: "desc" } },
+      shipmentRequest: {
+        include: { quotes: { orderBy: { createdAt: "asc" } } },
+      },
     },
   });
   if (!load) return undefined;
-  const loadAudits = await prisma.auditEvent.findMany({
+  const audits = await prisma.auditEvent.findMany({
     where: {
-      organizationId: membership.organizationId,
+      organizationId,
       OR: [
         { entityType: "Load", entityId: id },
         {
-          correlationId: {
-            in: (
-              await prisma.auditEvent.findMany({
-                where: {
-                  organizationId: membership.organizationId,
-                  entityType: "Load",
-                  entityId: id,
-                },
-                select: { correlationId: true },
-              })
-            ).map((event) => event.correlationId),
+          entityType: "CarrierCandidate",
+          entityId: {
+            in: load.carrierCandidates.map((candidate) => candidate.id),
           },
         },
       ],
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: "desc" },
+    take: 50,
   });
-  return { ...load, audits: loadAudits };
+  const roleNames = new Set([
+    membership.role,
+    ...membership.roles.map((role) => role.role),
+  ]);
+  return {
+    id: load.id,
+    number: load.loadNumber,
+    status: load.status,
+    customer: load.customer.name,
+    commodity: load.commodity,
+    weight: load.weightPounds,
+    equipment: load.equipmentType,
+    owner: load.primaryOwner?.name ?? "Unassigned",
+    nextAction: load.nextAction ?? "Review load readiness",
+    pickup: load.pickupDate,
+    delivery: load.deliveryDate,
+    stops: load.stops.map((stop) => ({
+      id: stop.id,
+      type: stop.type,
+      sequence: stop.sequence,
+      facility: stop.facilityName,
+      city: stop.city,
+      state: stop.state,
+      postalCode: stop.postalCode,
+      start: stop.appointmentStart,
+      end: stop.appointmentEnd,
+      confirmed: stop.appointmentConfirmedAt,
+      instructions: stop.instructions,
+    })),
+    candidates: load.carrierCandidates.map((candidate) => ({
+      id: candidate.id,
+      name: candidate.carrierName,
+      status: candidate.status,
+      authority: candidate.authorityConfirmed,
+      insurance: candidate.insuranceConfirmed,
+      cost:
+        candidate.quotedCostCents === null
+          ? undefined
+          : Number(candidate.quotedCostCents),
+      reason: candidate.blockReason ?? undefined,
+    })),
+    driver: load.driverAssignment
+      ? {
+          name: load.driverAssignment.driverName,
+          phone: load.driverAssignment.driverPhone ?? undefined,
+          dispatcher: load.driverAssignment.dispatcherName,
+          dispatcherPhone: load.driverAssignment.dispatcherPhone ?? undefined,
+          tractor: load.driverAssignment.tractorNumber ?? undefined,
+          trailer: load.driverAssignment.trailerNumber ?? undefined,
+        }
+      : undefined,
+    tracking: load.trackingUpdates.map((item) => ({
+      id: item.id,
+      status: item.status,
+      location: item.location ?? undefined,
+      occurredAt: item.occurredAt,
+      notes: item.notes ?? undefined,
+    })),
+    communications: load.communications.map((item) => ({
+      id: item.id,
+      channel: item.channel,
+      party: item.partyName,
+      direction: item.direction,
+      summary: item.summary,
+      occurredAt: item.occurredAt,
+    })),
+    tasks: load.tasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      status: task.status,
+      assignee: task.assignee.name,
+      dueAt: task.dueAt,
+    })),
+    audits: audits.map((event) => ({
+      id: event.id,
+      action: event.action,
+      entityType: event.entityType,
+      createdAt: event.createdAt,
+    })),
+    quotes: load.shipmentRequest.quotes.map((quote) => ({
+      id: quote.id,
+      status: quote.status,
+      amount: Number(quote.amountCents),
+      currency: quote.currency,
+      assumptions: quote.assumptions ?? undefined,
+    })),
+    canViewCommercials: roleNames.has("APPROVER") || roleNames.has("OPERATOR"),
+  };
 }

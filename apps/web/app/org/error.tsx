@@ -13,14 +13,14 @@ export default function OrganizationError({
         <p className="overline">Workspace unavailable</p>
         <h1>Atlas could not load this screen</h1>
         <p>
-          The demo session is still safe. Retry this screen or return to the
-          command center.
+          Your saved work is unchanged. Retry this screen or return to the
+          workspace selector.
         </p>
         <button className="button button-primary" onClick={reset}>
           Retry
         </button>
-        <Link className="button button-secondary" href="/org/atlas-north">
-          Command center
+        <Link className="button button-secondary" href="/">
+          Workspace selector
         </Link>
       </div>
     </section>
