@@ -12,27 +12,20 @@ const marker = "ATLAS_STAGING_PERSISTENCE_CHECK_V1";
 
 const syntheticShipment = {
   customerName: "Atlas Synthetic Customer",
+  originFacilityName: "Synthetic Origin",
+  originCity: "Atlanta",
+  originState: "GA",
+  originPostalCode: "30303",
+  destinationFacilityName: "Synthetic Destination",
+  destinationCity: "Charlotte",
+  destinationState: "NC",
+  destinationPostalCode: "28202",
   commodity: "Packaged synthetic test freight",
   weightPounds: 24000,
   equipmentType: "DRY_VAN" as const,
   pickupDate: "2026-08-03",
   deliveryDate: "2026-08-05",
-  stops: [
-    {
-      type: "PICKUP" as const,
-      facilityName: "Synthetic Origin",
-      city: "Atlanta",
-      state: "GA",
-      postalCode: "30303",
-    },
-    {
-      type: "DELIVERY" as const,
-      facilityName: "Synthetic Destination",
-      city: "Charlotte",
-      state: "NC",
-      postalCode: "28202",
-    },
-  ],
+  hazmat: false,
 };
 
 async function signIn(email: string, passwordVariable: string) {
