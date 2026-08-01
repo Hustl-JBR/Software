@@ -1,5 +1,9 @@
 # Project Atlas contributor instructions
 
+## Required handoff reading
+
+Before changing code, every coding agent must read `docs/CURRENT_STATE.md`, `docs/PRODUCT_VISION.md`, `docs/DEMO_ARCHITECTURE.md`, `docs/IMPLEMENTATION_HISTORY.md`, `docs/DECISIONS.md`, `docs/NEXT_STEPS.md`, `docs/KNOWN_ISSUES.md`, and `docs/DOMAIN_GLOSSARY.md`. Update `CURRENT_STATE.md` and `IMPLEMENTATION_HISTORY.md` after every meaningful change. Conversation history is not an authoritative project record.
+
 These instructions apply to the entire repository.
 
 ## Product boundaries
