@@ -3,6 +3,7 @@ import { prisma } from "@atlas/db/client";
 import { getSessionUserId } from "@/lib/session";
 import { signOut } from "../../actions";
 import { ErrorAlert } from "@/app/ui/error-alert";
+import { AttentionQueue } from "@/app/ui/attention-queue";
 import {
   DEMO_ORGANIZATION,
   DEMO_USER,
@@ -161,6 +162,7 @@ function DemoDashboard({ slug, error }: { slug: string; error?: string }) {
         subtitle={`${DEMO_USER.name} · Thursday, July 31`}
       />
       <ErrorAlert code={error} />
+      <AttentionQueue slug={slug} />
       <section className="metrics-grid" aria-label="Operations metrics">
         <Metric
           label="Today's revenue"

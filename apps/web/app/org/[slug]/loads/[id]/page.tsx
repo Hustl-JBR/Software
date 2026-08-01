@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@atlas/db/client";
 import { getSessionUserId } from "@/lib/session";
 import { DEMO_ORGANIZATION, getDemoLoad, isDemoMode } from "@/lib/demo-store";
+import { initialOperationsDemoState } from "@/lib/operations-demo-data";
+import { DemoLoadOperations } from "@/app/ui/demo-load-operations";
 
 type LoadView = {
   id: string;
@@ -38,6 +40,13 @@ export default async function LoadDetail({
   params: Promise<{ slug: string; id: string }>;
 }) {
   const { slug, id } = await params;
+  if (
+    isDemoMode() &&
+    slug === DEMO_ORGANIZATION.slug &&
+    initialOperationsDemoState.loads.some((load) => load.id === id)
+  ) {
+    return <DemoLoadOperations loadId={id} slug={slug} />;
+  }
   const load = isDemoMode()
     ? demoLoadView(slug, id)
     : await realLoadView(slug, id);
