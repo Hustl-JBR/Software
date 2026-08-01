@@ -114,12 +114,23 @@ describe.skipIf(!enabled)("approval transaction with PostgreSQL", () => {
     expect(otherOrgId).not.toBe(orgId);
   });
   it("rolls back all approval writes when approval validation fails", async () => {
-    const revisionId = await revision({
-      ...validCandidate,
-      originState: "BAD",
+    const request = await db.shipmentRequest.create({
+      data: { organizationId: orgId },
+    });
+    const invalidRevision = await db.shipmentRequestRevision.create({
+      data: {
+        organizationId: orgId,
+        shipmentRequestId: request.id,
+        revisionNumber: 1,
+        originalText: "synthetic invalid persisted revision",
+        structuredData: { ...validCandidate, originState: "BAD" },
+        extractionMetadata: { provider: "test", schemaVersion: "1" },
+        validationResults: { issues: ["invalid origin state"] },
+        createdById: approverId,
+      },
     });
     await expect(
-      approveRevision(approverId, slug, revisionId, "rollback"),
+      approveRevision(approverId, slug, invalidRevision.id, "rollback"),
     ).rejects.toThrow();
     expect(await db.load.count({ where: { organizationId: orgId } })).toBe(0);
     expect(
