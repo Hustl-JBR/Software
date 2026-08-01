@@ -1,5 +1,8 @@
 "use client";
 
+import { maskPhone } from "@/lib/demo-privacy";
+import { carrierSelectionBlockReason } from "@/lib/carrier-compliance";
+
 import { useState } from "react";
 import { useOperationsDemo } from "./operations-demo-provider";
 
@@ -8,6 +11,7 @@ const tabs = [
   "Tracking",
   "Stops",
   "Carrier",
+  "Contacts",
   "Communications",
   "Documents",
   "Financials",
@@ -129,6 +133,7 @@ export function DemoLoadOperations({
         {tab === "Tracking" && <Tracking loadId={loadId} />}
         {tab === "Stops" && <Stops loadId={loadId} />}
         {tab === "Carrier" && <Carrier loadId={loadId} />}
+        {tab === "Contacts" && <Contacts loadId={loadId} />}
         {tab === "Communications" && <Communications loadId={loadId} />}
         {tab === "Documents" && <Documents loadId={loadId} />}
         {tab === "Financials" && <Financials loadId={loadId} />}
@@ -610,6 +615,142 @@ function Carrier({ loadId }: { loadId: string }) {
   );
 }
 
+function Contacts({ loadId }: { loadId: string }) {
+  const { draftUpdate, logContactEvent } = useOperationsDemo();
+  const [revealed, setRevealed] = useState<Record<string, boolean>>({});
+  const groups = [
+    [
+      "Customer",
+      [
+        ["Morgan Lee", "Operations contact", "Hawthorne Home", "615-555-0114"],
+        ["Alex Grant", "Billing contact", "Hawthorne Home", "615-555-0162"],
+      ],
+    ],
+    [
+      "Pickup",
+      [
+        [
+          "Maria Lopez",
+          "Facility contact",
+          "Atlas Nashville Warehouse",
+          "615-555-0142",
+        ],
+        [
+          "Gate 4 Security",
+          "Gate contact",
+          "Atlas Nashville Warehouse",
+          "615-555-0190",
+        ],
+      ],
+    ],
+    [
+      "Delivery",
+      [
+        [
+          "Devin Price",
+          "Receiving contact",
+          "Atlanta Distribution Center",
+          "404-555-0198",
+        ],
+        [
+          "Scheduling Desk",
+          "Scheduling contact",
+          "Atlanta Distribution Center",
+          "404-555-0126",
+        ],
+      ],
+    ],
+    [
+      "Carrier",
+      [
+        ["Luis Martinez", "Assigned driver", "Summit Freight", "615-555-0187"],
+        ["Kim Walker", "Dispatcher", "Summit Freight", "615-555-0133"],
+        [
+          "After-hours desk",
+          "After-hours contact",
+          "Summit Freight",
+          "615-555-0100",
+        ],
+      ],
+    ],
+    [
+      "Internal",
+      [
+        ["Jordan Ellis", "Primary load owner", "Atlas North", "615-555-0102"],
+        ["Maya Chen", "Account manager", "Atlas North", "615-555-0106"],
+      ],
+    ],
+  ] as const;
+  return (
+    <div className="contact-directory">
+      {groups.map(([group, contacts]) => (
+        <section className="panel contact-group" key={group}>
+          <div className="panel-heading">
+            <div>
+              <p className="overline">{group}</p>
+              <h2>{group} contacts</h2>
+            </div>
+          </div>
+          {contacts.map(([name, role, company, phone]) => {
+            const key = `${group}-${name}`;
+            return (
+              <article className="contact-row" key={key}>
+                <span className="avatar">
+                  {name
+                    .split(" ")
+                    .map((part) => part[0])
+                    .join("")
+                    .slice(0, 2)}
+                </span>
+                <p>
+                  <b>{name}</b>
+                  <small>
+                    {role} · {company}
+                  </small>
+                </p>
+                <span>
+                  <small>Phone</small>
+                  <b>{revealed[key] ? phone : maskPhone(phone)}</b>
+                </span>
+                <span>
+                  <small>Preferred channel</small>
+                  <b>{role.includes("driver") ? "Text, then call" : "Email"}</b>
+                </span>
+                <div>
+                  <button
+                    onClick={() => {
+                      if (!revealed[key])
+                        logContactEvent(loadId, name, "revealed");
+                      setRevealed((value) => ({
+                        ...value,
+                        [key]: !value[key],
+                      }));
+                    }}
+                  >
+                    {revealed[key] ? "Hide" : "Reveal"}
+                  </button>
+                  <button
+                    onClick={() =>
+                      draftUpdate(loadId, `Contact draft for ${name}`)
+                    }
+                  >
+                    Draft message
+                  </button>
+                  <button
+                    onClick={() => logContactEvent(loadId, name, "called")}
+                  >
+                    Log call
+                  </button>
+                </div>
+              </article>
+            );
+          })}
+        </section>
+      ))}
+    </div>
+  );
+}
+
 function Communications({ loadId }: { loadId: string }) {
   const { state, draftUpdate } = useOperationsDemo();
   const items = state.communications.filter((item) => item.loadId === loadId);
@@ -1030,63 +1171,77 @@ function Sourcing() {
         <span>Atlas fit</span>
         <span>Stage / action</span>
       </div>
-      {state.carriers.map((carrier) => (
-        <div
-          className={`carrier-compare-row ${carrier.stage === "Selected" ? "selected" : ""}`}
-          key={carrier.id}
-        >
-          <span>
-            <b>{carrier.name}</b>
-            <small>
-              {carrier.mc} · {carrier.dot}
-              <br />
-              {carrier.pickupDistance} mi from pickup
-            </small>
-          </span>
-          <span>
-            <strong>${carrier.rate.toLocaleString()}</strong>
-            <small>${(carrier.rate / 612).toFixed(2)}/mi</small>
-          </span>
-          <span>
-            <b>{carrier.onTime}% on time</b>
-            <small>{carrier.cancellations}% cancel rate</small>
-          </span>
-          <span>
-            <b>{carrier.insurance}</b>
-            <small>
-              {carrier.authority} authority · {carrier.tracking}% tracking
-            </small>
-          </span>
-          <span>
-            <b>{carrier.laneLoads} loads</b>
-            <small>{carrier.relationship} relationship</small>
-          </span>
-          <span className="fit-score">
-            <strong>{carrier.fit}</strong>
-            <small>/ 100</small>
-          </span>
-          <span>
-            <span
-              className={`status-pill ${carrier.stage === "Recommended" || carrier.stage === "Selected" ? "green" : carrier.stage === "Countered" ? "amber" : "slate"}`}
-            >
-              {carrier.stage}
+      {state.carriers.map((carrier) => {
+        const blockReason = carrierSelectionBlockReason(
+          {
+            authority: carrier.authority,
+            insuranceStatus: carrier.insurance,
+            cargoLimit: carrier.name === "Oak River Freight" ? 50_000 : 100_000,
+          },
+          75_000,
+        );
+        return (
+          <div
+            className={`carrier-compare-row ${carrier.stage === "Selected" ? "selected" : ""}`}
+            key={carrier.id}
+          >
+            <span>
+              <b>{carrier.name}</b>
+              <small>
+                {carrier.mc} · {carrier.dot}
+                <br />
+                {carrier.pickupDistance} mi from pickup
+              </small>
             </span>
-            <div className="carrier-actions">
-              <button
-                onClick={() => updateCarrier(carrier.id, "Offer drafted")}
+            <span>
+              <strong>${carrier.rate.toLocaleString()}</strong>
+              <small>${(carrier.rate / 612).toFixed(2)}/mi</small>
+            </span>
+            <span>
+              <b>{carrier.onTime}% on time</b>
+              <small>{carrier.cancellations}% cancel rate</small>
+            </span>
+            <span>
+              <b>{carrier.insurance}</b>
+              <small>
+                {carrier.authority} authority · {carrier.tracking}% tracking
+              </small>
+            </span>
+            <span>
+              <b>{carrier.laneLoads} loads</b>
+              <small>{carrier.relationship} relationship</small>
+            </span>
+            <span className="fit-score">
+              <strong>{carrier.fit}</strong>
+              <small>/ 100</small>
+            </span>
+            <span>
+              <span
+                className={`status-pill ${carrier.stage === "Recommended" || carrier.stage === "Selected" ? "green" : carrier.stage === "Countered" ? "amber" : "slate"}`}
               >
-                Draft offer
-              </button>
-              <button onClick={() => updateCarrier(carrier.id, "Countered")}>
-                Record counter
-              </button>
-              <button onClick={() => updateCarrier(carrier.id, "Selected")}>
-                Select
-              </button>
-            </div>
-          </span>
-        </div>
-      ))}
+                {carrier.stage}
+              </span>
+              <div className="carrier-actions">
+                <button
+                  onClick={() => updateCarrier(carrier.id, "Offer drafted")}
+                >
+                  Draft offer
+                </button>
+                <button onClick={() => updateCarrier(carrier.id, "Countered")}>
+                  Record counter
+                </button>
+                <button
+                  disabled={Boolean(blockReason)}
+                  title={blockReason ?? "Select this synthetic carrier"}
+                  onClick={() => updateCarrier(carrier.id, "Selected")}
+                >
+                  {blockReason ? "Blocked" : "Select"}
+                </button>
+              </div>
+            </span>
+          </div>
+        );
+      })}
     </section>
   );
 }

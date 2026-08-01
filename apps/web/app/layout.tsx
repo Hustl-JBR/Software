@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { isDemoMode } from "@/lib/demo-store";
+import { SidebarNav } from "@/app/ui/sidebar-nav";
 
 import "./styles.css";
 
@@ -25,33 +26,15 @@ export default function RootLayout({
               </Link>
               {demo && <span className="demo-label">DEMO MODE</span>}
             </div>
-            <nav className="primary-nav" aria-label="Primary navigation">
-              <Link className="nav-item active" href={commandHref}>
-                <span className="nav-icon">⌂</span> Command center
-              </Link>
-              <Link className="nav-item" href="/org/atlas-north/loads">
-                <span className="nav-icon">↗</span> Loads
-                <span className="nav-count">12</span>
-              </Link>
-              <span className="nav-item muted-nav">
-                <span className="nav-icon">◎</span> Tracking
-              </span>
-              <span className="nav-item muted-nav">
-                <span className="nav-icon">◇</span> Network
-              </span>
-              <span className="nav-item muted-nav">
-                <span className="nav-icon">▤</span> Analytics
-              </span>
-            </nav>
-            <div className="sidebar-section">
-              <p>Workspace</p>
-              <span className="nav-item muted-nav">
-                <span className="nav-icon">◫</span> Documents
-              </span>
-              <span className="nav-item muted-nav">
-                <span className="nav-icon">⚙</span> Settings
-              </span>
-            </div>
+            {demo ? (
+              <SidebarNav />
+            ) : (
+              <nav className="primary-nav">
+                <Link className="nav-item active" href={commandHref}>
+                  <span className="nav-icon">⌂</span> Command center
+                </Link>
+              </nav>
+            )}
             <div className="sidebar-profile">
               <span className="avatar">DA</span>
               <span>

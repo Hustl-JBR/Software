@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function NotFound() {
   return (
     <section className="auth card">
@@ -6,9 +8,9 @@ export default function NotFound() {
       <p className="muted">
         It may not exist, or it may belong to another organization.
       </p>
-      <a className="button" href="/dashboard">
-        Return to dashboard
-      </a>
+      <Link className="button" href="/org/atlas-north">
+        Return to command center
+      </Link>
     </section>
   );
 }

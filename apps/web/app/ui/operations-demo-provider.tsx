@@ -5,6 +5,7 @@ import {
   initialOperationsDemoState,
   type OperationsDemoState,
 } from "@/lib/operations-demo-data";
+import { carrierSelectionBlockReason } from "@/lib/carrier-compliance";
 
 type DemoAction =
   | "advance"
@@ -26,6 +27,11 @@ type OperationsContext = {
   ) => void;
   simulate: (loadId: string, action: DemoAction) => void;
   draftUpdate: (loadId: string, kind?: string) => void;
+  logContactEvent: (
+    loadId: string,
+    contactName: string,
+    action: "revealed" | "called",
+  ) => void;
   resolveException: (id: string) => void;
   updatePricing: (
     loadId: string,
@@ -183,6 +189,34 @@ export function OperationsDemoProvider({
             },
             ...current.timeline,
           ];
+          if (action === "pause") {
+            const trackingAttention = current.attention.some(
+              (item) =>
+                item.loadId === loadId && item.problem.includes("tracking"),
+            )
+              ? current.attention
+              : [
+                  {
+                    id: crypto.randomUUID(),
+                    loadId,
+                    severity: "High" as const,
+                    problem: "Driver tracking was interrupted",
+                    why: "Atlas can no longer confirm location freshness or ETA confidence.",
+                    clock: "Action due now",
+                    recommendation:
+                      "Contact the driver or dispatcher and restore shipment-limited tracking.",
+                    owner: "Jordan Ellis",
+                    status: "Open" as const,
+                  },
+                  ...current.attention,
+                ];
+            return {
+              ...current,
+              loads,
+              timeline,
+              attention: trackingAttention,
+            };
+          }
           if (!isDelay) return { ...current, loads, timeline };
           const attention = current.attention.some(
             (item) => item.loadId === loadId && item.problem.includes("ETA"),
@@ -254,6 +288,44 @@ export function OperationsDemoProvider({
           ],
         }));
       },
+      logContactEvent(loadId, contactName, action) {
+        updateState((current) => ({
+          ...current,
+          communications:
+            action === "called"
+              ? [
+                  {
+                    id: crypto.randomUUID(),
+                    loadId,
+                    channel: "Call summary" as const,
+                    title: `Call logged · ${contactName}`,
+                    body: "Synthetic call outcome recorded by the operator. No real call was placed.",
+                    time: "Just now",
+                    status: "Logged" as const,
+                  },
+                  ...current.communications,
+                ]
+              : current.communications,
+          timeline: [
+            {
+              id: crypto.randomUUID(),
+              loadId,
+              title:
+                action === "revealed"
+                  ? "Sensitive contact detail viewed"
+                  : "Contact attempt recorded",
+              detail: `${contactName} · synthetic demo audit event`,
+              time: "Just now",
+              tone: "violet" as const,
+            },
+            ...current.timeline,
+          ],
+          activity: [
+            `${action === "revealed" ? "Sensitive contact viewed" : "Call logged"} · ${contactName}`,
+            ...current.activity,
+          ],
+        }));
+      },
       resolveException(id) {
         updateState((current) => {
           const exception = current.exceptions.find((item) => item.id === id);
@@ -283,16 +355,41 @@ export function OperationsDemoProvider({
         }));
       },
       updateCarrier(id, stage) {
-        updateState((current) => ({
-          ...current,
-          carriers: current.carriers.map((carrier) =>
-            carrier.id === id
-              ? { ...carrier, stage }
-              : stage === "Selected" && carrier.stage === "Selected"
-                ? { ...carrier, stage: "Interested" as const }
-                : carrier,
-          ),
-        }));
+        updateState((current) => {
+          const selected = current.carriers.find(
+            (carrier) => carrier.id === id,
+          );
+          const blockReason =
+            selected && stage === "Selected"
+              ? carrierSelectionBlockReason(
+                  {
+                    authority: selected.authority,
+                    insuranceStatus: selected.insurance,
+                    cargoLimit:
+                      selected.name === "Oak River Freight" ? 50_000 : 100_000,
+                  },
+                  75_000,
+                )
+              : null;
+          if (blockReason)
+            return {
+              ...current,
+              activity: [
+                `Carrier selection blocked · ${selected?.name} · ${blockReason}`,
+                ...current.activity,
+              ],
+            };
+          return {
+            ...current,
+            carriers: current.carriers.map((carrier) =>
+              carrier.id === id
+                ? { ...carrier, stage }
+                : stage === "Selected" && carrier.stage === "Selected"
+                  ? { ...carrier, stage: "Interested" as const }
+                  : carrier,
+            ),
+          };
+        });
       },
     }),
     [state],
