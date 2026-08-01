@@ -8,7 +8,7 @@ import {
 } from "../../../packages/db/commands";
 
 const prisma = new PrismaClient();
-const marker = "ATLAS_STAGING_PERSISTENCE_CHECK_V1";
+const marker = "ATLAS_STAGING_PERSISTENCE_CHECK_V2";
 
 const syntheticShipment = {
   customerName: "Atlas Synthetic Customer",
