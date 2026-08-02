@@ -11,9 +11,11 @@ import {
 export function SidebarNav({
   slug,
   loadCount,
+  onNavigate,
 }: {
   slug: string;
   loadCount?: number;
+  onNavigate?: () => void;
 }) {
   const pathname = usePathname();
   const navigation = atlasNavigation(slug, loadCount);
@@ -24,6 +26,7 @@ export function SidebarNav({
         className={`nav-item ${active ? "active" : ""}`}
         href={entry.href}
         key={entry.href}
+        onClick={onNavigate}
       >
         <span className="nav-icon">{entry.icon}</span>
         {entry.label}

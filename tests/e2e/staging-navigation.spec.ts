@@ -18,9 +18,9 @@ test("authenticated staging shell exposes real workspace routes and honest inact
   await expect(
     page.getByRole("heading", { name: "Good morning, Avery." }),
   ).toBeVisible();
-  await expect(
-    page.getByText("STAGING", { exact: true }).first(),
-  ).toBeVisible();
+  await expect(page.locator(".demo-label:visible")).toHaveText(
+    "STAGING · POSTGRESQL",
+  );
   const routes = [
     ["/operations", "Operations"],
     ["/org/atlas-north", "Good morning, Avery."],
@@ -36,9 +36,9 @@ test("authenticated staging shell exposes real workspace routes and honest inact
     await expect(
       page.getByRole("heading", { name: heading, exact: true }),
     ).toBeVisible();
-    await expect(
-      page.getByText("STAGING", { exact: true }).first(),
-    ).toBeVisible();
+    await expect(page.locator(".demo-label:visible")).toHaveText(
+      "STAGING · POSTGRESQL",
+    );
   }
   await page.goto("/org/atlas-north/documents");
   await expect(page.getByText("Document storage is not active")).toBeVisible();

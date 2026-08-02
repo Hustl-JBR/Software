@@ -18,7 +18,7 @@ const routes = [
 test.describe("demo workspace navigation", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/org/atlas-north");
-    await expect(page.getByText("DEMO", { exact: true })).toBeVisible();
+    await expect(page.locator(".demo-label:visible")).toHaveText("DEMO");
   });
 
   for (const [label, path, heading] of routes) {

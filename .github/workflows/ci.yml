@@ -32,6 +32,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: "1"
       SEED_DEVELOPMENT_DATA: "true"
       ATLAS_DEVELOPMENT_SEED_PASSWORD: "github-actions-synthetic-password"
+      ATLAS_CAPTURE_SCREENSHOTS: "true"
       CI: "true"
 
     steps:
@@ -106,3 +107,11 @@ jobs:
 
       - name: Run minimal browser E2E test
         run: pnpm test:e2e
+
+      - name: Upload authenticated staging screenshot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: authenticated-staging-responsive-evidence
+          path: test-results/authenticated-staging
+          if-no-files-found: warn

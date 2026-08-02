@@ -47,7 +47,10 @@ export async function StagingCommandCenter({
     }),
     prisma.task.findMany({
       where: { organizationId, status: "OPEN" },
-      include: { assignee: true, load: true },
+      include: {
+        assignee: true,
+        load: { include: { stops: { orderBy: { sequence: "asc" } } } },
+      },
       orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
       take: 12,
     }),
@@ -60,6 +63,12 @@ export async function StagingCommandCenter({
   const activeLoads = requests.flatMap((request) =>
     request.load ? [request.load] : [],
   );
+  const laneFor = (stops: Array<{ city: string; state: string }>) => {
+    const origin = stops[0];
+    const destination = stops.at(-1);
+    if (!origin || !destination) return "Lane pending";
+    return `${origin.city}, ${origin.state} → ${destination.city}, ${destination.state}`;
+  };
   const attention = [
     ...requests.flatMap((request) => {
       const issueCount = request.revisions[0]?.issues.length ?? 0;
@@ -67,8 +76,16 @@ export async function StagingCommandCenter({
         return [
           {
             id: `issues-${request.id}`,
-            title: `${issueCount} shipment ${issueCount === 1 ? "detail" : "details"} missing`,
-            detail: `Request ${request.id.slice(0, 8)} needs human review before approval.`,
+            severity: "High",
+            load:
+              request.load?.loadNumber ?? `Request ${request.id.slice(0, 8)}`,
+            lane: request.load
+              ? laneFor(request.load.stops)
+              : "Lane awaiting completion",
+            issue: `${issueCount} shipment ${issueCount === 1 ? "detail is" : "details are"} missing`,
+            owner: request.load?.primaryOwner?.name ?? "Intake team",
+            deadline: "Before approval",
+            action: "Review shipment",
             href: `/org/${slug}/requests/${request.id}`,
             tone: "amber",
           },
@@ -78,8 +95,16 @@ export async function StagingCommandCenter({
         return [
           {
             id: `quote-${quote.id}`,
-            title: "Quote awaiting approval",
-            detail: `Request ${request.id.slice(0, 8)} has a draft quote ready for a second reviewer.`,
+            severity: "Review",
+            load:
+              request.load?.loadNumber ?? `Request ${request.id.slice(0, 8)}`,
+            lane: request.load
+              ? laneFor(request.load.stops)
+              : "Lane awaiting completion",
+            issue: "Draft quote needs a second reviewer",
+            owner: request.load?.primaryOwner?.name ?? "Pricing team",
+            deadline: "Before customer release",
+            action: "Review pricing",
             href: request.load
               ? `/org/${slug}/loads/${request.load.id}#pricing`
               : `/org/${slug}/requests/${request.id}`,
@@ -95,8 +120,13 @@ export async function StagingCommandCenter({
         return [
           {
             id: `carrier-${request.load.id}`,
-            title: "Carrier review required",
-            detail: `${request.load.loadNumber} does not have a selected carrier.`,
+            severity: "High",
+            load: request.load.loadNumber,
+            lane: laneFor(request.load.stops),
+            issue: "No carrier has been selected",
+            owner: request.load.primaryOwner?.name ?? "Coverage team",
+            deadline: `Pickup ${request.load.pickupDate.toLocaleDateString()}`,
+            action: "Source carrier",
             href: `/org/${slug}/loads/${request.load.id}`,
             tone: "amber",
           },
@@ -105,8 +135,13 @@ export async function StagingCommandCenter({
     }),
     ...tasks.map((task) => ({
       id: `task-${task.id}`,
-      title: task.title,
-      detail: `${task.assignee.name}${task.dueAt ? ` · due ${task.dueAt.toLocaleString()}` : " · no due time"}`,
+      severity: task.dueAt && task.dueAt < new Date() ? "Overdue" : "Task",
+      load: task.load?.loadNumber ?? "Operations task",
+      lane: task.load ? laneFor(task.load.stops) : "General operations",
+      issue: task.title,
+      owner: task.assignee.name,
+      deadline: task.dueAt ? task.dueAt.toLocaleString() : "No due time",
+      action: "Open task",
       href: task.loadId ? `/org/${slug}/loads/${task.loadId}` : "/operations",
       tone: task.dueAt && task.dueAt < new Date() ? "red" : "blue",
     })),
@@ -143,14 +178,32 @@ export async function StagingCommandCenter({
         {attention.length ? (
           <div className="staging-attention-list">
             {attention.slice(0, 8).map((item) => (
-              <Link className="activity-row" href={item.href} key={item.id}>
-                <span className={`activity-icon ${item.tone}`}>!</span>
-                <span>
-                  <b>{item.title}</b>
-                  <small>{item.detail}</small>
-                </span>
-                <span className="inline-action">Review →</span>
-              </Link>
+              <article
+                className={`staging-attention-card ${item.tone}`}
+                key={item.id}
+              >
+                <div className="attention-card-kicker">
+                  <span className={`attention-severity ${item.tone}`}>
+                    {item.severity}
+                  </span>
+                  <strong>{item.load}</strong>
+                </div>
+                <p className="attention-lane">{item.lane}</p>
+                <h3>{item.issue}</h3>
+                <dl className="attention-meta">
+                  <div>
+                    <dt>Owner</dt>
+                    <dd>{item.owner}</dd>
+                  </div>
+                  <div>
+                    <dt>Deadline</dt>
+                    <dd>{item.deadline}</dd>
+                  </div>
+                </dl>
+                <Link className="button button-secondary" href={item.href}>
+                  {item.action} →
+                </Link>
+              </article>
             ))}
           </div>
         ) : (
