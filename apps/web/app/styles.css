@@ -112,6 +112,25 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 480px) {
+  .staging-directory > .optional-fields summary {
+    flex-wrap: wrap;
+  }
+
+  .staging-directory > .optional-fields summary small {
+    width: 100%;
+    margin-left: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .staging-directory .record-action-form,
+  .staging-directory .fields-grid,
+  .staging-directory .fields-grid > label {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
 * {
   box-sizing: border-box;
 }
