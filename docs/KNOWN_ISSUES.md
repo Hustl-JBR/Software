@@ -1,5 +1,7 @@
 # Known issues
 
+- Mileage is optional and manually reviewed; Atlas does not provide truck-legal routing or an in-product map.
+
 - Active demo operations are browser-session state and are not durable or multi-user.
 - Synthetic contacts and compliance evidence are design fixtures, not verified official records.
 - Some demo buttons intentionally log or draft locally; they never send messages, call people, upload documents, select production carriers, or transfer money.

@@ -94,14 +94,21 @@ export function MobileNavigation({
           />
         )}
         {profile && (
-          <div className="sidebar-profile mobile-profile">
-            <span className="avatar">{profile.initials}</span>
-            <span>
-              <strong>{profile.name}</strong>
-              <small>{profile.organization}</small>
-            </span>
-            <span className="presence" title="Online" />
-          </div>
+          <details className="sidebar-profile mobile-profile profile-menu">
+            <summary>
+              <span className="avatar">{profile.initials}</span>
+              <span>
+                <strong>{profile.name}</strong>
+                <small>{profile.organization}</small>
+              </span>
+              <span className="presence" title="Online" />
+            </summary>
+            {slug && (
+              <div className="profile-menu-items">
+                <Link href={`/org/${slug}/settings`}>Settings</Link>
+              </div>
+            )}
+          </details>
         )}
       </aside>
     </>

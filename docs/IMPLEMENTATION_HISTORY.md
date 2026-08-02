@@ -1,5 +1,12 @@
 # Implementation history
 
+## 2026-08-02: Reviewable staging simplification
+
+- Renamed the command-center experience to Today and reduced primary navigation to Today, Quotes, Loads, Customers, Carriers, and Money, with Settings moved into the user menu.
+- Reduced Today to Needs Attention (maximum five), today’s pickups and deliveries, quotes waiting, and recent activity; vague review labels were replaced with the task an employee must perform.
+- Removed Facilities and Google mapping/provider states from the active employee experience. Stop locations remain manual/reusable records, with optional stored mileage and an external OpenStreetMap link.
+- Kept existing load-operation sections and their navigation tabs rather than introducing an architecture rewrite.
+
 ## 2026-08-02: Claude-report recovery and employee-operations simplification
 
 Claude's reported branch, commits, bundle, and patch were unavailable after local, attachment, object, branch, and fetched-remote checks. A dedicated Codex branch recreated the approved behaviors without claiming exact recovery. The milestone makes explicit role rows authoritative, sanitizes operator errors and malformed identifiers, removes fabricated staging analysis, expands reviewed equipment support, annotates PostgreSQL timestamp intent, introduces normal dollar entry, blocks impossible DRAFT/physical-tracking combinations, creates `/operations`, isolates administrator tools, moves actions to their records, translates activity language, and raises employee UI readability. New migrations are narrow and contain no timestamp rewrite. Verification and deployment results are recorded separately as they complete.
@@ -25,3 +32,12 @@ Commits `189b3b8`, `d5563e0`, and `6df3de8` were pushed to `codex/integrate-clau
 17. The legacy disposable E2E seed was updated for Better Auth credentials, while the PostgreSQL-only intake browser test is excluded from browser-only demo runs. The final demo suite passes 12 tests with that one persistent test skipped.
 
 Final verification includes formatting, lint, strict type checking, 22 unit tests, 12 demo browser tests, a demo production build, two clean Railway deployments, 25 PostgreSQL integration tests per deployment, two authenticated synthetic users, cross-organization denial, persistent data across redeployment, and a healthy public endpoint.
+
+# 2026-08-02 — Facilities and routing foundation
+
+- Created `codex/facilities-routing-foundation` from frozen PR #2 head `7f09f18`; PR #2 remains unchanged.
+- Added organization-scoped facilities and contacts, immutable load-stop location/time-zone snapshots, route snapshots, provider usage metadata, composite tenant foreign keys, and an additive migration.
+- Added manual and Google location adapters, deterministic provider mocks, authenticated/debounced/rate-limited autocomplete and resolution routes, a Network facility directory, shipment facility selection, and load-stop attachment.
+- Added DST-safe facility-local appointment conversion with explicit overlap disambiguation and gap rejection.
+- Added provider-neutral route calculation, persistent cache hashing, honest general-road warnings, Google map rendering only with a browser key, and disabled fallback without credentials.
+- Added focused domain/provider/schema tests and the facility, time-zone, provider, Google setup, cost-control, and commercial-routing documentation set.

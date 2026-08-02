@@ -28,13 +28,21 @@ function candidate(form: FormData) {
   const fields = [
     "customerName",
     "originFacilityName",
+    "originFacilityId",
+    "originAddressLine1",
+    "originAddressLine2",
     "originCity",
     "originState",
     "originPostalCode",
+    "originTimeZone",
     "destinationFacilityName",
+    "destinationFacilityId",
+    "destinationAddressLine1",
+    "destinationAddressLine2",
     "destinationCity",
     "destinationState",
     "destinationPostalCode",
+    "destinationTimeZone",
     "pickupDate",
     "deliveryDate",
     "commodity",
@@ -43,8 +51,10 @@ function candidate(form: FormData) {
     "equipmentDetail",
     "pickupAppointmentStart",
     "pickupAppointmentEnd",
+    "pickupAppointmentDisambiguation",
     "deliveryAppointmentStart",
     "deliveryAppointmentEnd",
+    "deliveryAppointmentDisambiguation",
     "palletCount",
     "dimensions",
     "temperatureRequirements",
@@ -55,11 +65,7 @@ function candidate(form: FormData) {
   ];
   for (const field of fields) {
     const item = value(form, field);
-    if (item !== "")
-      result[field] =
-        field.endsWith("AppointmentStart") || field.endsWith("AppointmentEnd")
-          ? `${item}:00.000Z`
-          : item;
+    if (item !== "") result[field] = item;
   }
   result.hazmat = form.get("hazmat") === "on";
   return result;

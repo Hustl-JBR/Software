@@ -12,14 +12,12 @@ describe("demo navigation", () => {
   it("defines every sidebar route", () => {
     const items = [...demoNavigation, ...workspaceNavigation];
     expect(items.map((item) => item.label)).toEqual([
-      "Operations",
-      "Command center",
+      "Today",
+      "Quotes",
       "Loads",
-      "Tracking",
-      "Network",
-      "Analytics",
-      "Documents",
-      "Settings",
+      "Customers",
+      "Carriers",
+      "Money",
     ]);
     expect(new Set(items.map((item) => item.href)).size).toBe(items.length);
   });

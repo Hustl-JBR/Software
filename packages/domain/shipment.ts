@@ -21,6 +21,14 @@ const isoDate = z
       !Number.isNaN(date.valueOf()) && date.toISOString().startsWith(value)
     );
   }, "Enter a valid calendar date");
+const appointmentDateTime = z
+  .string()
+  .refine(
+    (value) =>
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(value) ||
+      z.string().datetime({ offset: true }).safeParse(value).success,
+    "Use a local date and time or an ISO 8601 instant",
+  );
 
 export const equipmentTypes = [
   "DRY_VAN",
@@ -41,13 +49,21 @@ export type EquipmentType = (typeof equipmentTypes)[number];
 const shipmentCandidateObject = z.object({
   customerName: requiredText("Customer or shipper name"),
   originFacilityName: requiredText("Origin facility name"),
+  originFacilityId: z.string().uuid().optional().or(z.literal("")),
+  originAddressLine1: optionalText,
+  originAddressLine2: optionalText,
   originCity: requiredText("Origin city"),
   originState: stateCode,
   originPostalCode: postalCode,
+  originTimeZone: optionalText,
   destinationFacilityName: requiredText("Destination facility name"),
+  destinationFacilityId: z.string().uuid().optional().or(z.literal("")),
+  destinationAddressLine1: optionalText,
+  destinationAddressLine2: optionalText,
   destinationCity: requiredText("Destination city"),
   destinationState: stateCode,
   destinationPostalCode: postalCode,
+  destinationTimeZone: optionalText,
   pickupDate: isoDate,
   deliveryDate: isoDate,
   commodity: requiredText("Commodity"),
@@ -56,22 +72,30 @@ const shipmentCandidateObject = z.object({
   equipmentDetail: optionalText,
   pickupAppointmentStart: z
     .string()
-    .datetime({ offset: true })
+    .pipe(appointmentDateTime)
     .optional()
     .or(z.literal("")),
   pickupAppointmentEnd: z
     .string()
-    .datetime({ offset: true })
+    .pipe(appointmentDateTime)
+    .optional()
+    .or(z.literal("")),
+  pickupAppointmentDisambiguation: z
+    .enum(["EARLIER", "LATER", "REJECT"])
     .optional()
     .or(z.literal("")),
   deliveryAppointmentStart: z
     .string()
-    .datetime({ offset: true })
+    .pipe(appointmentDateTime)
     .optional()
     .or(z.literal("")),
   deliveryAppointmentEnd: z
     .string()
-    .datetime({ offset: true })
+    .pipe(appointmentDateTime)
+    .optional()
+    .or(z.literal("")),
+  deliveryAppointmentDisambiguation: z
+    .enum(["EARLIER", "LATER", "REJECT"])
     .optional()
     .or(z.literal("")),
   palletCount: z.coerce
@@ -117,11 +141,35 @@ export const shipmentCandidateSchema = shipmentCandidateObject.superRefine(
           path: [end ? startKey : endKey],
           message: `${label} appointment requires both start and end`,
         });
-      } else if (start && end && new Date(end) <= new Date(start)) {
+      } else if (
+        start &&
+        end &&
+        /(?:Z|[+-]\d{2}:\d{2})$/.test(start) &&
+        /(?:Z|[+-]\d{2}:\d{2})$/.test(end) &&
+        new Date(end) <= new Date(start)
+      ) {
         context.addIssue({
           code: "custom",
           path: [endKey],
           message: `${label} appointment end must be after start`,
+        });
+      }
+    }
+    for (const [prefix, startKey, endKey] of [
+      ["origin", "pickupAppointmentStart", "pickupAppointmentEnd"],
+      ["destination", "deliveryAppointmentStart", "deliveryAppointmentEnd"],
+    ] as const) {
+      const start = value[startKey];
+      const end = value[endKey];
+      const usesLocal = [start, end].some(
+        (item) => item && !/(?:Z|[+-]\d{2}:\d{2})$/.test(item),
+      );
+      const zone = value[`${prefix}TimeZone`];
+      if (usesLocal && !zone) {
+        context.addIssue({
+          code: "custom",
+          path: [`${prefix}TimeZone`],
+          message: `${prefix === "origin" ? "Pickup" : "Delivery"} time zone is required for local appointment times`,
         });
       }
     }

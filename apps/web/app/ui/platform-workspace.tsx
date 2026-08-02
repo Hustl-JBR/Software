@@ -193,7 +193,7 @@ const carriers = [
 export function NetworkWorkspace() {
   const [tab, setTab] = useState("Carriers");
   const [query, setQuery] = useState("");
-  const tabs = ["Carriers", "Drivers", "Customers", "Facilities", "Lanes"];
+  const tabs = ["Carriers", "Drivers", "Customers", "Lanes"];
   return (
     <>
       <WorkspaceHeading

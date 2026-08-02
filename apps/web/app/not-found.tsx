@@ -9,7 +9,7 @@ export default function NotFound() {
         It may not exist, or it may belong to another organization.
       </p>
       <Link className="button" href="/org/atlas-north">
-        Return to command center
+        Return to Today
       </Link>
     </section>
   );

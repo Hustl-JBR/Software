@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@atlas/db/client";
 import { ErrorAlert } from "./error-alert";
-import { signOut } from "@/app/actions";
 import { humanizeAuditActivity, humanizeCode } from "@/lib/activity-language";
 
 export async function StagingCommandCenter({
@@ -82,10 +81,10 @@ export async function StagingCommandCenter({
             lane: request.load
               ? laneFor(request.load.stops)
               : "Lane awaiting completion",
-            issue: `${issueCount} shipment ${issueCount === 1 ? "detail is" : "details are"} missing`,
+            issue: "Complete the missing shipment details",
             owner: request.load?.primaryOwner?.name ?? "Intake team",
             deadline: "Before approval",
-            action: "Review shipment",
+            action: "Complete shipment details",
             href: `/org/${slug}/requests/${request.id}`,
             tone: "amber",
           },
@@ -101,10 +100,10 @@ export async function StagingCommandCenter({
             lane: request.load
               ? laneFor(request.load.stops)
               : "Lane awaiting completion",
-            issue: "Draft quote needs a second reviewer",
+            issue: "Approve the draft quote",
             owner: request.load?.primaryOwner?.name ?? "Pricing team",
             deadline: "Before customer release",
-            action: "Review pricing",
+            action: "Approve quote",
             href: request.load
               ? `/org/${slug}/loads/${request.load.id}#pricing`
               : `/org/${slug}/requests/${request.id}`,
@@ -123,10 +122,10 @@ export async function StagingCommandCenter({
             severity: "High",
             load: request.load.loadNumber,
             lane: laneFor(request.load.stops),
-            issue: "No carrier has been selected",
+            issue: "Assign a carrier",
             owner: request.load.primaryOwner?.name ?? "Coverage team",
             deadline: `Pickup ${request.load.pickupDate.toLocaleDateString()}`,
-            action: "Source carrier",
+            action: "Assign carrier",
             href: `/org/${slug}/loads/${request.load.id}`,
             tone: "amber",
           },
@@ -168,8 +167,8 @@ export async function StagingCommandCenter({
       <section className="panel attention-panel staging-attention">
         <div className="panel-heading">
           <div>
-            <p className="overline">Attention required</p>
-            <h2>Work that needs a human</h2>
+            <p className="overline">Today</p>
+            <h2>Needs Attention</h2>
           </div>
           <Link className="panel-link" href={`/org/${slug}/loads`}>
             Open loads workspace →
@@ -177,7 +176,7 @@ export async function StagingCommandCenter({
         </div>
         {attention.length ? (
           <div className="staging-attention-list">
-            {attention.slice(0, 8).map((item) => (
+            {attention.slice(0, 5).map((item) => (
               <article
                 className={`staging-attention-card ${item.tone}`}
                 key={item.id}
@@ -217,38 +216,12 @@ export async function StagingCommandCenter({
           </div>
         )}
       </section>
-      <section className="workspace-summary staging-summary">
-        <DashboardSummary
-          value={tasks.filter((task) => task.assigneeId === userId).length}
-          label="My open tasks"
-          detail="Assigned persistent work"
-        />
-        <DashboardSummary
-          value={
-            tasks.filter((task) => task.dueAt && task.dueAt < new Date()).length
-          }
-          label="Overdue"
-          detail="Follow-up required"
-        />
-        <DashboardSummary
-          value={activeLoads.length}
-          label="Operational loads"
-          detail="PostgreSQL-backed"
-        />
-        <DashboardSummary
-          value={
-            activeLoads.filter((load) => load.trackingUpdates.length > 0).length
-          }
-          label="Manually tracked"
-          detail="No live GPS connected"
-        />
-      </section>
       <section className="command-grid operations-today-grid">
         <div className="panel">
           <div className="panel-heading">
             <div>
-              <p className="overline">Upcoming pickups</p>
-              <h2>Pickup schedule</h2>
+              <p className="overline">Schedule</p>
+              <h2>Today’s Pickups and Deliveries</h2>
             </div>
           </div>
           {activeLoads.slice(0, 4).map((load) => (
@@ -274,8 +247,8 @@ export async function StagingCommandCenter({
         <div className="panel">
           <div className="panel-heading">
             <div>
-              <p className="overline">Upcoming deliveries</p>
-              <h2>Delivery schedule</h2>
+              <p className="overline">Today</p>
+              <h3>Deliveries</h3>
             </div>
           </div>
           {activeLoads.slice(0, 4).map((load) => (
@@ -301,8 +274,8 @@ export async function StagingCommandCenter({
         <div className="panel">
           <div className="panel-heading">
             <div>
-              <p className="overline">Customer follow-ups</p>
-              <h2>Commercial decisions</h2>
+              <p className="overline">Customer decisions</p>
+              <h2>Quotes Waiting</h2>
             </div>
           </div>
           {requests
@@ -337,75 +310,11 @@ export async function StagingCommandCenter({
         </div>
       </section>
       <section className="command-grid staging-command-grid">
-        <div className="panel active-loads-panel">
-          <div className="panel-heading">
-            <div>
-              <p className="overline">Active operations</p>
-              <h2>Current loads</h2>
-            </div>
-            <Link className="panel-link" href={`/org/${slug}/loads`}>
-              View all →
-            </Link>
-          </div>
-          {activeLoads.length ? (
-            <div className="load-table">
-              <div className="table-head">
-                <span>Load</span>
-                <span>Customer & lane</span>
-                <span>Owner</span>
-                <span>Tracking</span>
-                <span>Status</span>
-              </div>
-              {activeLoads.slice(0, 6).map((load) => (
-                <Link
-                  className="table-row load-row"
-                  href={`/org/${slug}/loads/${load.id}`}
-                  key={load.id}
-                >
-                  <strong>{load.loadNumber}</strong>
-                  <span>
-                    <b>{load.customer.name}</b>
-                    <small>
-                      {load.stops[0]?.city ?? "Origin pending"} →{" "}
-                      {load.stops.at(-1)?.city ?? "Destination pending"}
-                    </small>
-                  </span>
-                  <span>{load.primaryOwner?.name ?? "Unassigned"}</span>
-                  <span>
-                    <b>{load.trackingUpdates[0]?.status ?? "Not started"}</b>
-                    <small>Manual updates</small>
-                  </span>
-                  <span>
-                    <span className="status-pill blue">
-                      {humanizeCode(load.status)}
-                    </span>
-                    <small>{load.nextAction ?? "Next action not set"}</small>
-                  </span>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <span>＋</span>
-              <h3>No operational loads yet</h3>
-              <p>
-                Approve the first complete shipment request to create a
-                persistent load.
-              </p>
-              <Link
-                className="button button-secondary"
-                href={`/org/${slug}/requests/new`}
-              >
-                Create first shipment
-              </Link>
-            </div>
-          )}
-        </div>
         <aside className="panel activity-panel">
           <div className="panel-heading">
             <div>
-              <p className="overline">Recent activity</p>
-              <h2>Meaningful operational activity</h2>
+              <p className="overline">Updates</p>
+              <h2>Recent Activity</h2>
             </div>
           </div>
           {audits.map((event) => (
@@ -428,56 +337,6 @@ export async function StagingCommandCenter({
           ))}
         </aside>
       </section>
-      <section className="panel onboarding-panel">
-        <div>
-          <p className="overline">Operations</p>
-          <h2>Keep every load owned and actionable</h2>
-          <p>
-            Review intake, open tasks, upcoming stops, and load-specific actions
-            without leaving the employee workspace.
-          </p>
-        </div>
-        <div className="onboarding-actions">
-          <Link
-            className="button button-secondary"
-            href={`/org/${slug}/requests/new`}
-          >
-            Create shipment
-          </Link>
-          <Link
-            className="button button-secondary"
-            href={`/org/${slug}/network`}
-          >
-            Review carrier network
-          </Link>
-          <Link className="button button-ghost" href="/operations">
-            Open operations
-          </Link>
-        </div>
-      </section>
-      <form action={signOut}>
-        <button className="text-button">Sign out</button>
-      </form>
     </>
-  );
-}
-
-function DashboardSummary({
-  value,
-  label,
-  detail,
-}: {
-  value: number;
-  label: string;
-  detail: string;
-}) {
-  return (
-    <div>
-      <strong>{value}</strong>
-      <p>
-        <b>{label}</b>
-        <small>{detail}</small>
-      </p>
-    </div>
   );
 }

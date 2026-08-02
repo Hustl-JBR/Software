@@ -21,9 +21,11 @@ import {
   recordDriver,
   selectCarrier,
   updateOwnership,
+  attachStopFacility,
 } from "@/app/org/[slug]/staging/actions";
 import { randomUUID } from "node:crypto";
 import { ErrorAlert } from "./error-alert";
+import { formatInFacilityTimeZone } from "@atlas/domain/timezone";
 
 export type StagingLoadOperationsView = {
   id: string;
@@ -38,6 +40,7 @@ export type StagingLoadOperationsView = {
   owner: string;
   nextAction: string;
   members: Array<{ id: string; name: string }>;
+  facilities: Array<{ id: string; name: string; city: string; state: string }>;
   pickup: Date;
   delivery: Date;
   stops: Array<{
@@ -52,7 +55,11 @@ export type StagingLoadOperationsView = {
     end: Date | null;
     confirmed: Date | null;
     instructions: string | null;
+    timeZone: string | null;
   }>;
+  route?: {
+    distanceMeters: number;
+  };
   candidates: Array<{
     id: string;
     name: string;
@@ -129,6 +136,11 @@ export function StagingLoadOperations({
   const selected = load.candidates.find(
     (candidate) => candidate.status === "SELECTED",
   );
+  const openStreetMapHref = origin
+    ? `https://www.openstreetmap.org/search?query=${encodeURIComponent(
+        `${origin.facility}, ${origin.city}, ${origin.state} ${origin.postalCode}`,
+      )}`
+    : "https://www.openstreetmap.org";
   const tabs = [
     "overview",
     "tracking",
@@ -145,7 +157,7 @@ export function StagingLoadOperations({
   return (
     <>
       <div className="breadcrumb">
-        <Link href={`/org/${slug}`}>Command center</Link>
+        <Link href={`/org/${slug}`}>Today</Link>
         <span>/</span>
         <Link href={`/org/${slug}/loads`}>Loads</Link>
         <span>/</span>
@@ -204,6 +216,23 @@ export function StagingLoadOperations({
               </h2>
             </div>
           </div>
+          <div className="route-disclaimer">
+            <b>Manual stop addresses</b>
+            <span>
+              {load.route
+                ? `Estimated mileage: ${Math.round(load.route.distanceMeters / 1609.344).toLocaleString()} mi`
+                : "Estimated mileage is optional and has not been entered."}
+            </span>
+            <small>Addresses are entered and reviewed manually.</small>
+          </div>
+          <a
+            className="button button-secondary"
+            href={openStreetMapHref}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open in OpenStreetMap
+          </a>
           <div className="route-vitals">
             <span>
               <small>Pickup</small>
@@ -343,11 +372,34 @@ export function StagingLoadOperations({
                 </p>
                 <small>
                   {stop.start
-                    ? `${shortDate(stop.start)}${stop.end ? ` – ${shortDate(stop.end)}` : ""}`
+                    ? `${stop.timeZone ? formatInFacilityTimeZone(stop.start, stop.timeZone) : shortDate(stop.start)}${stop.end ? ` – ${stop.timeZone ? formatInFacilityTimeZone(stop.end, stop.timeZone) : shortDate(stop.end)}` : ""}`
                     : "Appointment not scheduled"}{" "}
                   · {stop.confirmed ? "Confirmed" : "Not confirmed"}
                 </small>
                 {stop.instructions && <p>{stop.instructions}</p>}
+                {load.canManageLoad && load.facilities.length > 0 && (
+                  <form
+                    action={attachStopFacility}
+                    className="record-action-form"
+                  >
+                    <HiddenFields slug={slug} loadId={load.id} />
+                    <input type="hidden" name="stopId" value={stop.id} />
+                    <label>
+                      Reusable facility
+                      <select name="facilityId" defaultValue="" required>
+                        <option value="">Select facility</option>
+                        {load.facilities.map((facility) => (
+                          <option value={facility.id} key={facility.id}>
+                            {facility.name} — {facility.city}, {facility.state}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button className="button button-ghost">
+                      Use facility snapshot
+                    </button>
+                  </form>
+                )}
                 {!stop.confirmed && load.canManageLoad && (
                   <form action={confirmStop}>
                     <HiddenFields slug={slug} loadId={load.id} />

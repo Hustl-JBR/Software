@@ -1,11 +1,18 @@
+import {
+  ShipmentFacilityPicker,
+  type ShipmentFacilityOption,
+} from "./shipment-facility-picker";
+
 type Values = Record<string, unknown>;
 
 export function ShipmentForm({
   values = {},
   compact = false,
+  facilities = [],
 }: {
   values?: Values;
   compact?: boolean;
+  facilities?: ShipmentFacilityOption[];
 }) {
   const v = (key: string) => String(values[key] ?? "");
   return (
@@ -24,11 +31,26 @@ export function ShipmentForm({
               <span>1</span> Pickup
             </legend>
             <label>
+              Saved facility
+              <ShipmentFacilityPicker
+                prefix="origin"
+                facilities={facilities}
+                defaultValue={v("originFacilityId")}
+              />
+            </label>
+            <label>
               Facility name
               <input
                 name="originFacilityName"
                 defaultValue={v("originFacilityName")}
                 placeholder="Origin facility"
+              />
+            </label>
+            <label>
+              Street address
+              <input
+                name="originAddressLine1"
+                defaultValue={v("originAddressLine1")}
               />
             </label>
             <div className="field-row">
@@ -52,17 +74,40 @@ export function ShipmentForm({
                 />
               </label>
             </div>
+            <label>
+              IANA time zone
+              <input
+                name="originTimeZone"
+                defaultValue={v("originTimeZone")}
+                placeholder="America/Chicago"
+              />
+            </label>
           </fieldset>
           <fieldset>
             <legend>
               <span>2</span> Delivery
             </legend>
             <label>
+              Saved facility
+              <ShipmentFacilityPicker
+                prefix="destination"
+                facilities={facilities}
+                defaultValue={v("destinationFacilityId")}
+              />
+            </label>
+            <label>
               Facility name
               <input
                 name="destinationFacilityName"
                 defaultValue={v("destinationFacilityName")}
                 placeholder="Destination facility"
+              />
+            </label>
+            <label>
+              Street address
+              <input
+                name="destinationAddressLine1"
+                defaultValue={v("destinationAddressLine1")}
               />
             </label>
             <div className="field-row">
@@ -89,6 +134,14 @@ export function ShipmentForm({
                 />
               </label>
             </div>
+            <label>
+              IANA time zone
+              <input
+                name="destinationTimeZone"
+                defaultValue={v("destinationTimeZone")}
+                placeholder="America/New_York"
+              />
+            </label>
           </fieldset>
         </div>
       </section>
@@ -209,6 +262,17 @@ export function ShipmentForm({
             />
           </label>
           <label>
+            Pickup DST overlap
+            <select
+              name="pickupAppointmentDisambiguation"
+              defaultValue={v("pickupAppointmentDisambiguation") || "REJECT"}
+            >
+              <option value="REJECT">Ask me if ambiguous</option>
+              <option value="EARLIER">Earlier occurrence</option>
+              <option value="LATER">Later occurrence</option>
+            </select>
+          </label>
+          <label>
             Delivery window start
             <input
               type="datetime-local"
@@ -223,6 +287,17 @@ export function ShipmentForm({
               name="deliveryAppointmentEnd"
               defaultValue={local(v("deliveryAppointmentEnd"))}
             />
+          </label>
+          <label>
+            Delivery DST overlap
+            <select
+              name="deliveryAppointmentDisambiguation"
+              defaultValue={v("deliveryAppointmentDisambiguation") || "REJECT"}
+            >
+              <option value="REJECT">Ask me if ambiguous</option>
+              <option value="EARLIER">Earlier occurrence</option>
+              <option value="LATER">Later occurrence</option>
+            </select>
           </label>
         </div>
       </section>

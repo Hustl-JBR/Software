@@ -57,10 +57,11 @@ export default async function Review({
       ? 100
       : Math.max(72, 96 - revision.issues.length * 4)
     : undefined;
+  const facilities = demo ? [] : await facilityOptions(slug);
   return (
     <>
       <div className="breadcrumb">
-        <a href={`/org/${slug}`}>Command center</a>
+        <a href={`/org/${slug}`}>Today</a>
         <span>/</span>
         <a href={`/org/${slug}`}>Requests</a>
         <span>/</span>
@@ -236,7 +237,7 @@ export default async function Review({
               </div>
               <span className="reviewed-by">◉ Reviewed by you</span>
             </div>
-            <ShipmentForm values={values} />
+            <ShipmentForm values={values} facilities={facilities} />
             <div className="form-actions">
               <span>Changes are tracked in the revision history.</span>
               <button className="button button-secondary" type="submit">
@@ -360,6 +361,29 @@ export default async function Review({
       </section>
     </>
   );
+}
+
+async function facilityOptions(slug: string) {
+  const userId = await getSessionUserId();
+  if (!userId) redirect("/sign-in");
+  const membership = await prisma.organizationMembership.findFirst({
+    where: { userId, status: "ACTIVE", organization: { slug } },
+  });
+  if (!membership) notFound();
+  return prisma.facility.findMany({
+    where: { organizationId: membership.organizationId, status: "ACTIVE" },
+    select: {
+      id: true,
+      name: true,
+      addressLine1: true,
+      addressLine2: true,
+      city: true,
+      state: true,
+      postalCode: true,
+      timeZone: true,
+    },
+    orderBy: { name: "asc" },
+  });
 }
 
 function AnalysisFact({

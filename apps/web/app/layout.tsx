@@ -4,6 +4,7 @@ import { SidebarNav } from "@/app/ui/sidebar-nav";
 import { getSessionUserId } from "@/lib/session";
 import { prisma } from "@atlas/db/client";
 import { MobileNavigation } from "@/app/ui/mobile-navigation";
+import { signOut } from "@/app/actions";
 
 import "./styles.css";
 
@@ -70,14 +71,26 @@ export default async function RootLayout({
             </div>
             {slug && <SidebarNav slug={slug} loadCount={loadCount} />}
             {profile && (
-              <div className="sidebar-profile">
-                <span className="avatar">{profile.initials}</span>
-                <span>
-                  <strong>{profile.name}</strong>
-                  <small>{profile.organization}</small>
-                </span>
-                <span className="presence" title="Online" />
-              </div>
+              <details className="sidebar-profile profile-menu">
+                <summary>
+                  <span className="avatar">{profile.initials}</span>
+                  <span>
+                    <strong>{profile.name}</strong>
+                    <small>{profile.organization}</small>
+                  </span>
+                  <span className="presence" title="Online" />
+                </summary>
+                {slug && (
+                  <div className="profile-menu-items">
+                    <Link href={`/org/${slug}/settings`}>Settings</Link>
+                    {!demo && (
+                      <form action={signOut}>
+                        <button type="submit">Sign out</button>
+                      </form>
+                    )}
+                  </div>
+                )}
+              </details>
             )}
           </aside>
           <div className="workspace">

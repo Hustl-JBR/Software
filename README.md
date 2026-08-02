@@ -12,17 +12,22 @@ Project Atlas is a human-controlled operating platform for domestic full-trucklo
 
 ## Documentation map
 
-| Document                                             | Purpose                                                                            |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| [Product requirements](docs/product-requirements.md) | Scope, workflows, personas, requirements, assumptions, and open questions          |
-| [Architecture](docs/architecture.md)                 | System boundaries, proposed repository, runtime design, and cross-cutting controls |
-| [Data model](docs/data-model.md)                     | Entities, relationships, invariants, tenancy, and retention                        |
-| [Load state machine](docs/load-state-machine.md)     | Load lifecycle, guards, milestones, and exceptions                                 |
-| [Security model](docs/security-model.md)             | Authentication, RBAC, authorization, and threat controls                           |
-| [AI safety](docs/ai-safety.md)                       | Structured AI workflows, validation, approvals, and evaluation                     |
-| [Integrations](docs/integrations.md)                 | Adapter contracts and mock-first policy                                            |
-| [Testing strategy](docs/testing-strategy.md)         | Test pyramid, security tests, fixtures, and release gates                          |
-| [Development roadmap](docs/development-roadmap.md)   | Phases and a small, testable Phase 1 backlog                                       |
+| Document                                                     | Purpose                                                                            |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| [Product requirements](docs/product-requirements.md)         | Scope, workflows, personas, requirements, assumptions, and open questions          |
+| [Architecture](docs/architecture.md)                         | System boundaries, proposed repository, runtime design, and cross-cutting controls |
+| [Data model](docs/data-model.md)                             | Entities, relationships, invariants, tenancy, and retention                        |
+| [Load state machine](docs/load-state-machine.md)             | Load lifecycle, guards, milestones, and exceptions                                 |
+| [Security model](docs/security-model.md)                     | Authentication, RBAC, authorization, and threat controls                           |
+| [AI safety](docs/ai-safety.md)                               | Structured AI workflows, validation, approvals, and evaluation                     |
+| [Integrations](docs/integrations.md)                         | Adapter contracts and mock-first policy                                            |
+| [Testing strategy](docs/testing-strategy.md)                 | Test pyramid, security tests, fixtures, and release gates                          |
+| [Development roadmap](docs/development-roadmap.md)           | Phases and a small, testable Phase 1 backlog                                       |
+| [Facility model](docs/FACILITY_MODEL.md)                     | Reusable tenant facilities and immutable stop snapshots                            |
+| [Appointment time zones](docs/APPOINTMENT_TIMEZONE_MODEL.md) | Facility-local wall time, UTC conversion, and DST rules                            |
+| [Location provider](docs/LOCATION_PROVIDER.md)               | Address search, resolution, authorization, and fallback                            |
+| [Routing provider](docs/ROUTING_PROVIDER.md)                 | Provider-neutral general road estimates and snapshots                              |
+| [Google Maps setup](docs/GOOGLE_MAPS_SETUP.md)               | Separate browser/server credentials and activation                                 |
 
 ## Recommended first vertical slice
 

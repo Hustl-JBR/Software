@@ -11,19 +11,15 @@ export function AttentionQueue({ slug }: { slug: string }) {
     <section className="panel attention-queue">
       <div className="panel-heading">
         <div>
-          <p className="overline red-overline">Operational priority</p>
-          <h2>Attention required</h2>
-          <p>
-            Atlas ranks the work most likely to affect service, cost, or
-            customer trust.
-          </p>
+          <p className="overline red-overline">Today</p>
+          <h2>Needs Attention</h2>
         </div>
         <a href={`/org/${slug}/loads?filter=attention`} className="panel-link">
           Open loads workspace →
         </a>
       </div>
       <div className="attention-list">
-        {active.map((item) => {
+        {active.slice(0, 5).map((item) => {
           const load = state.loads.find(
             (candidate) => candidate.id === item.loadId,
           );

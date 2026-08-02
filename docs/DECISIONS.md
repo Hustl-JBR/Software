@@ -18,3 +18,7 @@
 - The employee entry point is `/operations`; synthetic developer controls are isolated at `/internal/staging-tools` and require the staging administrator capability bundle.
 - One authoritative load status is supplemented by readiness blockers and exceptions. DRAFT cannot coexist with a physical tracking milestone.
 - Employee USD inputs accept dollars while persistence remains integer cents.
+- Facilities are reusable organization-scoped records; load stops retain immutable address, coordinate, validation, and time-zone snapshots.
+- Appointment input is facility-local wall time plus an IANA zone. DST gaps are rejected and DST overlaps require explicit earlier/later selection before a UTC instant is stored.
+- The active employee experience is mapping-provider-free: addresses are entered manually, mileage is optional, and location lookup is an external OpenStreetMap link. Existing provider adapters remain inactive implementation history and require no credentials.
+- All current route results are labeled `GENERAL_ROAD_ESTIMATE` with a non-truck-legal warning. Commercial routing remains a separate future adapter and decision.

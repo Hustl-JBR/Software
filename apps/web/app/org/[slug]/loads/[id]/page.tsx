@@ -72,7 +72,7 @@ export default async function LoadDetail({
   return (
     <>
       <div className="breadcrumb">
-        <a href={`/org/${slug}`}>Command center</a>
+        <a href={`/org/${slug}`}>Today</a>
         <span>/</span>
         <a href={`/org/${slug}`}>Loads</a>
         <span>/</span>
@@ -469,6 +469,11 @@ async function stagingLoadView(
       trackingUpdates: { orderBy: { occurredAt: "desc" } },
       communications: { orderBy: { occurredAt: "desc" } },
       tasks: { include: { assignee: true }, orderBy: { createdAt: "desc" } },
+      routeSnapshots: {
+        where: { status: "CURRENT" },
+        orderBy: { calculatedAt: "desc" },
+        take: 1,
+      },
       shipmentRequest: {
         include: { quotes: { orderBy: { createdAt: "asc" } } },
       },
@@ -483,6 +488,11 @@ async function stagingLoadView(
     },
     include: { user: true },
     orderBy: { user: { name: "asc" } },
+  });
+  const facilities = await prisma.facility.findMany({
+    where: { organizationId, status: "ACTIVE" },
+    select: { id: true, name: true, city: true, state: true },
+    orderBy: { name: "asc" },
   });
   const audits = await prisma.auditEvent.findMany({
     where: {
@@ -501,6 +511,7 @@ async function stagingLoadView(
     take: 50,
   });
   const roleNames = new Set(roles);
+  const route = load.routeSnapshots[0];
   return {
     id: load.id,
     requestId: load.shipmentRequestId,
@@ -514,6 +525,7 @@ async function stagingLoadView(
     owner: load.primaryOwner?.name ?? "Unassigned",
     nextAction: load.nextAction ?? "Review load readiness",
     members: members.map((item) => ({ id: item.userId, name: item.user.name })),
+    facilities,
     pickup: load.pickupDate,
     delivery: load.deliveryDate,
     stops: load.stops.map((stop) => ({
@@ -528,7 +540,13 @@ async function stagingLoadView(
       end: stop.appointmentEnd,
       confirmed: stop.appointmentConfirmedAt,
       instructions: stop.instructions,
+      timeZone: stop.timeZone,
     })),
+    route: route
+      ? {
+          distanceMeters: route.distanceMeters,
+        }
+      : undefined,
     candidates: load.carrierCandidates.map((candidate) => ({
       id: candidate.id,
       name: candidate.carrierName,

@@ -55,7 +55,7 @@ const activeLoads = [
   },
 ];
 
-export default async function Dashboard({
+export default async function TodayPage({
   params,
   searchParams,
 }: {
@@ -119,6 +119,103 @@ function PageHeading({
 }
 
 function DemoDashboard({ slug, error }: { slug: string; error?: string }) {
+  const requests = getDemoRequests();
+  return (
+    <>
+      <PageHeading
+        slug={slug}
+        name={DEMO_ORGANIZATION.name}
+        subtitle={`${DEMO_USER.name} · Thursday, July 31`}
+      />
+      <ErrorAlert code={error} />
+      <AttentionQueue slug={slug} />
+      <section className="panel schedule-panel">
+        <div className="panel-heading">
+          <div>
+            <p className="overline">Schedule</p>
+            <h2>Today’s Pickups and Deliveries</h2>
+          </div>
+        </div>
+        <Schedule
+          time="11:30"
+          type="Pickup"
+          facility="Atlas Nashville Warehouse"
+          load="ATL-4825"
+        />
+        <Schedule
+          time="13:00"
+          type="Delivery"
+          facility="Georgia Pacific DC"
+          load="ATL-4816"
+        />
+        <Schedule
+          time="14:45"
+          type="Pickup"
+          facility="Meridian Foods · Cicero"
+          load="ATL-4828"
+        />
+      </section>
+      <section className="panel request-panel" id="quotes">
+        <div className="panel-heading">
+          <div>
+            <p className="overline">Customer decisions</p>
+            <h2>Quotes Waiting</h2>
+          </div>
+        </div>
+        {requests.length === 0 ? (
+          <div className="empty-state compact-empty">
+            <span>✓</span>
+            <h3>No quotes are waiting</h3>
+          </div>
+        ) : (
+          <div className="load-table">
+            {requests.slice(0, 5).map((request) => (
+              <a
+                className="table-row request-row"
+                href={`/org/${slug}/requests/${request.id}`}
+                key={request.id}
+              >
+                <span>
+                  <b>Request {request.id.slice(0, 8)}</b>
+                  <small>Customer approval is waiting</small>
+                </span>
+                <span>Open quote →</span>
+              </a>
+            ))}
+          </div>
+        )}
+      </section>
+      <section className="panel activity-panel">
+        <div className="panel-heading">
+          <div>
+            <p className="overline">Updates</p>
+            <h2>Recent Activity</h2>
+          </div>
+        </div>
+        <Activity
+          icon="✓"
+          title="POD received"
+          detail="ATL-4809 · 4 min ago"
+          tone="green"
+        />
+        <Activity
+          icon="↗"
+          title="Carrier checked in at pickup"
+          detail="ATL-4818 · 12 min ago"
+          tone="blue"
+        />
+      </section>
+    </>
+  );
+}
+
+function LegacyDemoDashboard({
+  slug,
+  error,
+}: {
+  slug: string;
+  error?: string;
+}) {
   const requests = getDemoRequests();
   return (
     <>
@@ -379,6 +476,8 @@ function DemoDashboard({ slug, error }: { slug: string; error?: string }) {
     </>
   );
 }
+
+void LegacyDemoDashboard;
 
 function Metric({
   label,

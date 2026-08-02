@@ -23,6 +23,12 @@ async function assertNoPageOverflow(page: Page, label: string) {
         htmlScroll: number;
         bodyClient: number;
         bodyScroll: number;
+        offenders: Array<{
+          tag: string;
+          className: string;
+          right: number;
+          width: number;
+        }>;
       }
     | undefined;
   await expect
@@ -34,6 +40,21 @@ async function assertNoPageOverflow(page: Page, label: string) {
             htmlScroll: document.documentElement.scrollWidth,
             bodyClient: document.body.clientWidth,
             bodyScroll: document.body.scrollWidth,
+            offenders: [...document.querySelectorAll<HTMLElement>("body *")]
+              .map((element) => ({
+                element,
+                rect: element.getBoundingClientRect(),
+              }))
+              .filter(
+                ({ rect }) => rect.right > document.body.clientWidth + 0.5,
+              )
+              .slice(0, 10)
+              .map(({ element, rect }) => ({
+                tag: element.tagName,
+                className: element.className,
+                right: Math.round(rect.right * 10) / 10,
+                width: Math.round(rect.width * 10) / 10,
+              })),
           }));
           return true;
         } catch (error) {
@@ -52,9 +73,10 @@ async function assertNoPageOverflow(page: Page, label: string) {
   expect(dimensions.htmlScroll, `${label}: html overflow`).toBeLessThanOrEqual(
     dimensions.htmlClient,
   );
-  expect(dimensions.bodyScroll, `${label}: body overflow`).toBeLessThanOrEqual(
-    dimensions.bodyClient,
-  );
+  expect(
+    dimensions.bodyScroll,
+    `${label}: body overflow; offenders=${JSON.stringify(dimensions.offenders)}`,
+  ).toBeLessThanOrEqual(dimensions.bodyClient);
 }
 
 test("all major staging routes remain usable across the approved viewport matrix", async ({
@@ -115,8 +137,9 @@ test("all major staging routes remain usable across the approved viewport matrix
 
   const routes = [
     { name: "operations", path: "/operations" },
-    { name: "command-center", path: "/org/atlas-north" },
+    { name: "today", path: "/org/atlas-north" },
     { name: "loads", path: "/org/atlas-north/loads" },
+    { name: "network-carriers", path: "/org/atlas-north/network#carriers" },
     { name: "new-shipment", path: "/org/atlas-north/requests/new" },
     { name: "shipment-review", path: reviewHref },
     { name: "load-overview", path: `${loadHref}#overview` },
