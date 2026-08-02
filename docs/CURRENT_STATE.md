@@ -1,6 +1,23 @@
 # Current state
 
-Last verified: 2026-08-01. Branch: `codex/create-initial-documentation-and-project-plan`.
+Last verified locally: 2026-08-02. Recovery branch: `codex/integrate-claude-review`, based on verified commit `e353adf`.
+
+Claude's reported branch, six commits, Git bundle, and patch were not present locally, in uploaded attachments, or on the fetched GitHub remote. The current recovery is therefore a clean-room recreation of the behaviors described in the owner-approved handoff, not an exact import.
+
+## Current recovery milestone
+
+- `/operations` is the normal authenticated employee workspace; the old organization staging route redirects there.
+- `/internal/staging-tools` preserves synthetic command controls, is absent from employee navigation, and requires the full staging administrator capability bundle.
+- Load actions live in Overview, Pricing, Sourcing, Carrier, Stops, Tracking, Communications, and Tasks on the load record. Timeline uses employee language; Audit retains technical identifiers.
+- Explicit role rows are authoritative and role changes synchronize the compatibility column. A regression test proves demotion from APPROVER to VIEWER revokes quote approval.
+- Staging review no longer invents confidence, mileage/transit, capacity, or missing equipment. Demo-only concepts remain labeled synthetic.
+- Malformed UUIDs return the controlled unavailable screen, and database errors are mapped to safe operator codes before redirects.
+- USD is entered/displayed as dollars and stored as integer cents through shared parsing/formatting.
+- The equipment catalog includes dry van, reefer, flatbed, step deck, conestoga, lowboy, RGN, power only, box truck, sprinter, hotshot, tanker, plus optional detail.
+- DRAFT loads reject physical tracking milestones. A forward migration safely reclassifies contradictory synthetic tracking rows as manual check calls.
+- All non-date Prisma `DateTime` fields explicitly declare `@db.Timestamptz(6)`; the original SQL already created those columns as `TIMESTAMPTZ`, so the new migrations contain no timestamp conversion.
+
+Local results so far: strict TypeScript passes and 43 unit tests pass. PostgreSQL, build, lint, Playwright, browser, Railway, push, and draft-PR results must be recorded only after they run.
 
 Published approved demo baseline: commit `9a178c7`, remote branch `origin/codex/create-initial-documentation-and-project-plan`, draft pull request [#1](https://github.com/Hustl-JBR/Software/pull/1). The four approved demo commits were published without rewriting history on 2026-07-31.
 
@@ -27,6 +44,7 @@ corepack pnpm dev
 
 ## Routes
 
+- `/operations` normal authenticated employee workspace (demo redirects to demo loads)
 - `/org/atlas-north` command center
 - `/org/atlas-north/loads` loads workspace
 - `/org/atlas-north/loads/[id]` load operations
@@ -38,12 +56,13 @@ corepack pnpm dev
 - `/org/atlas-north/settings` demo policies
 - `/org/atlas-north/requests/new` intake
 - `/org/atlas-north/requests/[id]` review and approval
+- `/internal/staging-tools` hidden staging administrator test console
 
 ## Tests
 
 Unit tests cover domain validation, extraction, demo intake/idempotency, operations-data consistency, navigation state, privacy helpers, and carrier-compliance boundaries. The demo Playwright suite covers every sidebar route, direct loading, active state, browser history, controlled not-found handling, contact masking/reveal/call logging, shared tracking attention, carrier blocking, and console cleanliness. CI also defines formatting, lint, Prisma generation/deployment, type checking, unit/integration tests, build, and Playwright. Last verification: formatting, lint, type checking, 22 unit tests, 12 demo browser tests, demo production build, and a clean in-app browser walkthrough passed.
 
-Exact next recommended task: add the reviewed real-employee invitation/provisioning flow and a private, restore-tested PostgreSQL backup before allowing real data.
+Exact next recommended implementation phase after this recovery: a reviewed employee invitation/provisioning flow with secure credential enrollment. Backup/restore readiness remains a release prerequisite, not a reason to broaden this implementation phase.
 
 ## Persistent staging implementation
 

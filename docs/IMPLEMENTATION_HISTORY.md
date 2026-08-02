@@ -1,5 +1,9 @@
 # Implementation history
 
+## 2026-08-02: Claude-report recovery and employee-operations simplification
+
+Claude's reported branch, commits, bundle, and patch were unavailable after local, attachment, object, branch, and fetched-remote checks. A dedicated Codex branch recreated the approved behaviors without claiming exact recovery. The milestone makes explicit role rows authoritative, sanitizes operator errors and malformed identifiers, removes fabricated staging analysis, expands reviewed equipment support, annotates PostgreSQL timestamp intent, introduces normal dollar entry, blocks impossible DRAFT/physical-tracking combinations, creates `/operations`, isolates administrator tools, moves actions to their records, translates activity language, and raises employee UI readability. New migrations are narrow and contain no timestamp rewrite. Verification and deployment results are recorded separately as they complete.
+
 1. Repository foundation established product, architecture, security, testing, and phased-roadmap documentation.
 2. The first vertical slice implemented tenant-scoped shipment intake, deterministic extraction, immutable correction revisions, exact approval, draft load/stops, and audit history.
 3. Verification hardening added CI, PostgreSQL 16 configuration, integration/E2E coverage, safe errors, seed guards, and local setup.
