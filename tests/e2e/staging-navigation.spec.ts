@@ -32,7 +32,9 @@ test("authenticated staging shell exposes real workspace routes and honest inact
   ] as const;
   for (const [path, heading] of routes) {
     await page.goto(path);
-    await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: heading, exact: true }),
+    ).toBeVisible();
     await expect(
       page
         .getByText(

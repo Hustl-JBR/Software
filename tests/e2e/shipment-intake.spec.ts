@@ -33,18 +33,22 @@ test("sign in, review extraction, correct, approve, and view a draft load", asyn
     page.getByRole("heading", { name: "Information needed" }),
   ).toBeVisible();
   await expect(page.getByText("Complete missing fields")).toBeVisible();
-  await expect(page.getByLabel("Customer or shipper name")).toHaveValue(
+  await expect(page.locator('input[name="customerName"]')).toHaveValue(
     "E2E Foods",
   );
 
-  await page.getByLabel("Origin facility name").fill("E2E Chicago Plant");
-  await page.getByLabel("Origin city").fill("Chicago");
-  await page.getByLabel("Origin state").fill("IL");
-  await page.getByLabel("Origin postal code").fill("60601");
-  await page.getByLabel("Destination facility name").fill("E2E Dallas DC");
-  await page.getByLabel("Destination city").fill("Dallas");
-  await page.getByLabel("Destination state").fill("TX");
-  await page.getByLabel("Destination postal code").fill("75201");
+  await page
+    .locator('input[name="originFacilityName"]')
+    .fill("E2E Chicago Plant");
+  await page.locator('input[name="originCity"]').fill("Chicago");
+  await page.locator('input[name="originState"]').fill("IL");
+  await page.locator('input[name="originPostalCode"]').fill("60601");
+  await page
+    .locator('input[name="destinationFacilityName"]')
+    .fill("E2E Dallas DC");
+  await page.locator('input[name="destinationCity"]').fill("Dallas");
+  await page.locator('input[name="destinationState"]').fill("TX");
+  await page.locator('input[name="destinationPostalCode"]').fill("75201");
   await page.getByRole("button", { name: "Save as new revision" }).click();
 
   await expect(page.getByText("Revision 2 saved")).toBeVisible();
