@@ -13,6 +13,8 @@
 
 The recovery branch is deployed to this existing service only after formatting, lint, type checking, unit/integration tests, build, and migration review pass. Never run `prisma migrate dev` against Railway. The checked-in equipment migration adds `equipment_detail` and broadens the constraint; the status-repair migration only reclassifies contradictory synthetic tracking rows. Existing timestamp columns are already `TIMESTAMPTZ` and no recovery migration changes their types.
 
+Recovery deployment `0917b316-2370-4fa6-a57d-57d624ead488` succeeded on 2026-08-02. It applied migrations `20260802000100_equipment_types` and `20260802000200_status_consistency`, passed 29 PostgreSQL integration tests, seeded without printing credentials, confirmed two sign-ins/shared access/cross-organization denial/persistence, and passed `/api/health`. Railway deployed exact commit `6df3de8` on request, but its connected source configuration still reports the existing development branch; no persistent source-branch change is claimed. All other resources and configuration were preserved.
+
 The database reference must use Railway private networking. Do not configure `DATABASE_PUBLIC_URL`, a TCP proxy, or a custom database domain.
 
 ## Migration and seed process

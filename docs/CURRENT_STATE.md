@@ -17,7 +17,7 @@ Claude's reported branch, six commits, Git bundle, and patch were not present lo
 - DRAFT loads reject physical tracking milestones. A forward migration safely reclassifies contradictory synthetic tracking rows as manual check calls.
 - All non-date Prisma `DateTime` fields explicitly declare `@db.Timestamptz(6)`; the original SQL already created those columns as `TIMESTAMPTZ`, so the new migrations contain no timestamp conversion.
 
-Local results so far: strict TypeScript passes and 43 unit tests pass. PostgreSQL, build, lint, Playwright, browser, Railway, push, and draft-PR results must be recorded only after they run.
+Verified recovery results: formatting, ESLint, strict TypeScript, Prisma generation, and production build pass; 46 unit tests pass; 12 demo Playwright tests pass; and the in-app browser has a clean console/no horizontal overflow at 1920, 1440, 1280, 1024, 768, and 390 px. Railway deployment `0917b316-2370-4fa6-a57d-57d624ead488` applied both migrations and passed 29 PostgreSQL integration tests, guarded seed, two Better Auth sign-ins, shared-tenant/cross-tenant checks, and persistence confirmation. Health reports `status: ok`, `mode: staging`, and `database: reachable`. The three implementation commits are pushed and draft PR [#2](https://github.com/Hustl-JBR/Software/pull/2) is open.
 
 Published approved demo baseline: commit `9a178c7`, remote branch `origin/codex/create-initial-documentation-and-project-plan`, draft pull request [#1](https://github.com/Hustl-JBR/Software/pull/1). The four approved demo commits were published without rewriting history on 2026-07-31.
 
