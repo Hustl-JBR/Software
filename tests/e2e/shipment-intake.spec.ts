@@ -27,12 +27,12 @@ test("sign in, review extraction, correct, approve, and view a draft load", asyn
   await page.getByRole("button", { name: "Analyze shipment" }).click();
 
   await expect(
-    page.getByRole("heading", { name: "Review shipment request" }),
+    page.getByRole("heading", { name: "Review Atlas analysis" }),
   ).toBeVisible();
   await expect(
-    page.getByText("MISSING", { exact: true }).first(),
+    page.getByRole("heading", { name: "Information needed" }),
   ).toBeVisible();
-  await expect(page.getByText("UNCERTAIN", { exact: true })).toBeVisible();
+  await expect(page.getByText("Complete missing fields")).toBeVisible();
   await expect(page.getByLabel("Customer or shipper name")).toHaveValue(
     "E2E Foods",
   );
@@ -47,15 +47,11 @@ test("sign in, review extraction, correct, approve, and view a draft load", asyn
   await page.getByLabel("Destination postal code").fill("75201");
   await page.getByRole("button", { name: "Save as new revision" }).click();
 
-  await expect(
-    page.getByText("A new immutable correction revision was saved."),
-  ).toBeVisible();
-  await expect(
-    page.getByText("This revision passes deterministic validation."),
-  ).toBeVisible();
-  await page.getByLabel("I reviewed and approve this exact revision.").check();
+  await expect(page.getByText("Revision 2 saved")).toBeVisible();
+  await expect(page.getByText("Deterministic validation passed")).toBeVisible();
+  await page.getByLabel(/I reviewed this exact revision/).check();
   await page
-    .getByRole("button", { name: "Approve and create draft load" })
+    .getByRole("button", { name: /Approve & create draft load/ })
     .click();
 
   await expect(page.getByText("Persistent load operations")).toBeVisible();
