@@ -10,6 +10,7 @@ export function atlasNavigation(slug: string, loadCount?: number) {
   const root = `/org/${slug}`;
   return {
     primary: [
+      { label: "Operations", icon: "▦", href: "/operations", exact: true },
       { label: "Command center", icon: "⌂", href: root, exact: true },
       {
         label: "Loads",

@@ -2491,6 +2491,190 @@ small {
     margin-top: 14px;
   }
 }
+
+/* Employee readability and record-action layer */
+.page-heading h1,
+.operations-load-header h1 {
+  font-size: clamp(30px, 2.4vw, 36px);
+}
+.page-subtitle,
+.operations-load-header > div > p,
+.operations-section p,
+.operations-index-panel,
+.operations-lower-grid,
+.staging-command-grid {
+  font-size: 14px;
+  line-height: 1.55;
+}
+.panel-heading h2,
+.operations-section > .panel-heading h2 {
+  font-size: clamp(20px, 1.6vw, 24px);
+}
+.operations-section h3,
+.operations-index-panel h3,
+.staging-command-grid h3 {
+  font-size: 17px;
+}
+.operations-section small,
+.operations-section time,
+.operations-index-panel small,
+.operations-lower-grid small,
+.staging-command-grid small,
+.header-health small {
+  font-size: 12px;
+  line-height: 1.45;
+}
+.operations-section b,
+.operations-index-panel b,
+.operations-lower-grid b,
+.staging-command-grid b,
+.header-health b {
+  font-size: 14px;
+}
+.operations-tabs a {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 13px;
+  border-radius: 6px;
+  color: #5b6875;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.operations-tabs a.active {
+  color: #22303d;
+  background: #fff;
+  box-shadow: 0 1px 4px #19243315;
+}
+.operations-section,
+.operations-index-panel,
+.operations-lower-grid > .panel {
+  padding-bottom: 22px;
+}
+.operations-section > :not(.panel-heading),
+.operations-lower-grid > .panel > :not(.panel-heading) {
+  margin-left: 22px;
+  margin-right: 22px;
+}
+.record-action-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid #dce3ea;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+.inline-record-form {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: end;
+}
+.record-action-form label,
+.internal-tools-workspace label {
+  font-size: 13px;
+  line-height: 1.35;
+}
+.record-action-form input,
+.record-action-form select,
+.record-action-form textarea,
+.internal-tools-workspace input,
+.internal-tools-workspace select,
+.internal-tools-workspace textarea {
+  min-height: 44px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+.record-action-form textarea,
+.internal-tools-workspace textarea {
+  min-height: 88px;
+}
+.record-action-form .button,
+.internal-tools-workspace button,
+.operations-section button {
+  min-height: 42px;
+  font-size: 14px;
+}
+.operations-index-row {
+  grid-template-columns: 0.75fr 1.15fr 1.6fr 0.8fr 1fr auto;
+  min-height: 58px;
+  padding: 12px 20px;
+  align-items: center;
+}
+.operations-summary {
+  margin-bottom: 18px;
+}
+.operations-lower-grid {
+  margin-top: 18px;
+}
+.operations-today-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 18px 0;
+}
+.internal-tools-workspace {
+  max-width: 1500px;
+  margin: 0 auto;
+}
+.internal-tools-workspace .card {
+  padding: 20px;
+}
+.internal-tools-workspace .card h2 {
+  font-size: 19px;
+}
+@media (max-width: 1280px) {
+  .operations-index-row {
+    grid-template-columns: 0.8fr 1.2fr 1.5fr 1fr auto;
+  }
+  .operations-index-row > span:nth-of-type(3) {
+    display: none;
+  }
+}
+@media (max-width: 1024px) {
+  .ops-overview-grid,
+  .operations-lower-grid,
+  .operations-today-grid {
+    grid-template-columns: 1fr;
+  }
+  .operations-load-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+}
+@media (max-width: 768px) {
+  .operations-index-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .operations-index-row > span:nth-of-type(2),
+  .operations-index-row > span:nth-of-type(3) {
+    display: none;
+  }
+  .two-stop-detail,
+  .carrier-score-grid,
+  .finance-lines {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 390px) {
+  main {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .page-heading h1,
+  .operations-load-header h1 {
+    font-size: 30px;
+  }
+  .operations-section > :not(.panel-heading),
+  .operations-lower-grid > .panel > :not(.panel-heading) {
+    margin-left: 14px;
+    margin-right: 14px;
+  }
+  .inline-record-form,
+  .operations-index-row {
+    grid-template-columns: 1fr;
+  }
+}
 .contact-directory {
   display: grid;
   gap: 13px;
@@ -4535,4 +4719,49 @@ small {
     align-items: flex-start;
     flex-direction: column;
   }
+}
+
+/* Keep readability overrides last so legacy demo-density rules cannot win. */
+.page-heading h1,
+.operations-load-header h1 {
+  font-size: clamp(30px, 2.4vw, 36px);
+}
+.panel-heading h2,
+.operations-section > .panel-heading h2 {
+  font-size: clamp(20px, 1.6vw, 24px);
+}
+.operations-section p,
+.operations-section b,
+.operations-index-panel,
+.operations-lower-grid,
+.staging-command-grid {
+  font-size: 14px;
+  line-height: 1.55;
+}
+.operations-section small,
+.operations-section time,
+.operations-index-panel small,
+.operations-lower-grid small,
+.staging-command-grid small {
+  font-size: 12px;
+}
+.operations-tabs a {
+  min-height: 40px;
+  padding: 8px 13px;
+  font-size: 13px;
+}
+.record-action-form input,
+.record-action-form select,
+.record-action-form textarea,
+.internal-tools-workspace input,
+.internal-tools-workspace select,
+.internal-tools-workspace textarea {
+  min-height: 44px;
+  font-size: 14px;
+}
+.record-action-form .button,
+.internal-tools-workspace button,
+.operations-section button {
+  min-height: 42px;
+  font-size: 14px;
 }

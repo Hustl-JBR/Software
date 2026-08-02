@@ -6,9 +6,29 @@ import {
   StatusBadge,
 } from "./atlas-primitives";
 import { money, shortDate, relativeTime } from "@/lib/atlas-view-models";
+import { formatUsdFromCents } from "@/lib/currency";
+import { humanizeAuditActivity, humanizeCode } from "@/lib/activity-language";
+import {
+  acceptQuote,
+  addCandidate,
+  addCommunication,
+  addTracking,
+  approveQuote,
+  completeTask,
+  confirmStop,
+  createQuote,
+  createTask,
+  recordDriver,
+  selectCarrier,
+  updateOwnership,
+} from "@/app/org/[slug]/staging/actions";
+import { randomUUID } from "node:crypto";
+import { ErrorAlert } from "./error-alert";
 
 export type StagingLoadOperationsView = {
   id: string;
+  requestId: string;
+  currentUserId: string;
   number: string;
   status: string;
   customer: string;
@@ -17,6 +37,7 @@ export type StagingLoadOperationsView = {
   equipment: string;
   owner: string;
   nextAction: string;
+  members: Array<{ id: string; name: string }>;
   pickup: Date;
   delivery: Date;
   stops: Array<{
@@ -40,6 +61,7 @@ export type StagingLoadOperationsView = {
     insurance: boolean;
     cost?: number;
     reason?: string;
+    coverage?: number;
   }>;
   driver?: {
     name: string;
@@ -83,16 +105,24 @@ export type StagingLoadOperationsView = {
     amount: number;
     currency: string;
     assumptions?: string;
+    createdById: string;
   }>;
   canViewCommercials: boolean;
+  canManageLoad: boolean;
+  canManageQuotes: boolean;
+  canApprove: boolean;
 };
 
 export function StagingLoadOperations({
   slug,
   load,
+  saved,
+  error,
 }: {
   slug: string;
   load: StagingLoadOperationsView;
+  saved?: string;
+  error?: string;
 }) {
   const origin = load.stops[0];
   const destination = load.stops.at(-1);
@@ -106,6 +136,7 @@ export function StagingLoadOperations({
     "carrier",
     "contacts",
     "communications",
+    "tasks",
     "documents",
     "timeline",
     "audit",
@@ -123,14 +154,14 @@ export function StagingLoadOperations({
       <header className="operations-load-header">
         <div>
           <div className="title-line">
-            <p className="overline">Persistent load operations</p>
-            <StatusBadge label={load.status} tone="blue" />
+            <p className="overline">Load operations</p>
+            <StatusBadge label={humanizeCode(load.status)} tone="blue" />
             <EnvironmentChip mode="staging" />
           </div>
           <h1>{load.number}</h1>
           <p>
             {load.customer} · {load.commodity} · {load.weight.toLocaleString()}{" "}
-            lb · {load.equipment}
+            lb · {humanizeCode(load.equipment)}
           </p>
         </div>
         <div className="header-health">
@@ -144,6 +175,12 @@ export function StagingLoadOperations({
           </span>
         </div>
       </header>
+      {saved && (
+        <div className="alert success">
+          Saved and added to the record history.
+        </div>
+      )}
+      <ErrorAlert code={error} />
       <nav className="operations-tabs" aria-label="Load operations sections">
         {tabs.map((tab, index) => (
           <a className={index === 0 ? "active" : ""} href={`#${tab}`} key={tab}>
@@ -190,12 +227,36 @@ export function StagingLoadOperations({
           <p className="overline">Operator handoff</p>
           <h2>{load.nextAction}</h2>
           <p>
-            All changes remain role-checked, tenant-scoped, and audit logged
-            through the staging operations controls.
+            Current owner: {load.owner}. Backup owner is not configured and is
+            listed as a readiness blocker.
           </p>
-          <Link className="button button-primary" href={`/org/${slug}/staging`}>
-            Open operations controls
-          </Link>
+          {load.canManageLoad && (
+            <form className="record-action-form" action={updateOwnership}>
+              <HiddenFields slug={slug} loadId={load.id} />
+              <label>
+                Owner
+                <select name="primaryOwnerId" defaultValue="" required>
+                  <option value="">Select owner</option>
+                  {load.members.map((member) => (
+                    <option value={member.id} key={member.id}>
+                      {member.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Next action
+                <input
+                  name="nextAction"
+                  defaultValue={load.nextAction}
+                  required
+                />
+              </label>
+              <button className="button button-primary">
+                Update ownership
+              </button>
+            </form>
+          )}
         </aside>
       </section>
       <OperationsSection
@@ -209,7 +270,7 @@ export function StagingLoadOperations({
               <div className="timeline-row" key={item.id}>
                 <span className="activity-icon blue">◇</span>
                 <p>
-                  <b>{item.status}</b>
+                  <b>{humanizeCode(item.status)}</b>
                   <small>
                     {item.location ?? "No location"} ·{" "}
                     {item.notes ?? "No notes"}
@@ -225,6 +286,45 @@ export function StagingLoadOperations({
             body="Manual milestones recorded for this load will appear here. No GPS provider is connected."
           />
         )}
+        {load.canManageLoad && (
+          <form
+            className="record-action-form inline-record-form"
+            action={addTracking}
+          >
+            <HiddenFields slug={slug} loadId={load.id} />
+            <label>
+              Update type
+              <select name="status" required>
+                <option value="MANUAL_CHECK_CALL">Manual check call</option>
+                <option value="LOCATION_REPORTED">Location reported</option>
+                <option value="NO_UPDATE">No update available</option>
+              </select>
+            </label>
+            <label>
+              Reported location
+              <input name="location" />
+            </label>
+            <label>
+              Occurred at
+              <input
+                name="occurredAt"
+                type="datetime-local"
+                defaultValue={nowLocal()}
+                required
+              />
+            </label>
+            <label>
+              Evidence or note
+              <textarea name="notes" />
+            </label>
+            <button className="button button-secondary">
+              Record tracking update
+            </button>
+            <small>
+              Physical milestones are blocked while this load remains Draft.
+            </small>
+          </form>
+        )}
       </OperationsSection>
       <OperationsSection
         id="stops"
@@ -236,7 +336,7 @@ export function StagingLoadOperations({
             <article className="stop-detail-card" key={stop.id}>
               <span className="stop-sequence">{stop.sequence}</span>
               <div>
-                <StatusBadge label={stop.type} tone="slate" />
+                <StatusBadge label={humanizeCode(stop.type)} tone="slate" />
                 <h3>{stop.facility}</h3>
                 <p>
                   {stop.city}, {stop.state} {stop.postalCode}
@@ -248,6 +348,15 @@ export function StagingLoadOperations({
                   · {stop.confirmed ? "Confirmed" : "Not confirmed"}
                 </small>
                 {stop.instructions && <p>{stop.instructions}</p>}
+                {!stop.confirmed && load.canManageLoad && (
+                  <form action={confirmStop}>
+                    <HiddenFields slug={slug} loadId={load.id} />
+                    <input type="hidden" name="stopId" value={stop.id} />
+                    <button className="button button-secondary">
+                      Confirm appointment
+                    </button>
+                  </form>
+                )}
               </div>
             </article>
           ))}
@@ -282,8 +391,48 @@ export function StagingLoadOperations({
         ) : (
           <EmptyState
             title="No carrier selected"
-            body="Eligible carrier candidates can be reviewed and selected from staging operations controls."
+            body="Add and review eligible carrier options in the Sourcing section below."
           />
+        )}
+        {selected && !load.driver && load.canManageLoad && (
+          <form
+            className="record-action-form inline-record-form"
+            action={recordDriver}
+          >
+            <HiddenFields slug={slug} loadId={load.id} />
+            <input
+              type="hidden"
+              name="carrierCandidateId"
+              value={selected.id}
+            />
+            <label>
+              Driver name
+              <input name="driverName" required />
+            </label>
+            <label>
+              Driver phone
+              <input name="driverPhone" />
+            </label>
+            <label>
+              Dispatcher
+              <input name="dispatcherName" required />
+            </label>
+            <label>
+              Dispatcher phone
+              <input name="dispatcherPhone" />
+            </label>
+            <label>
+              Tractor
+              <input name="tractorNumber" />
+            </label>
+            <label>
+              Trailer
+              <input name="trailerNumber" />
+            </label>
+            <button className="button button-secondary">
+              Record carrier assignment
+            </button>
+          </form>
         )}
       </OperationsSection>
       <OperationsSection
@@ -336,10 +485,10 @@ export function StagingLoadOperations({
           <div className="communication-timeline">
             {load.communications.map((item) => (
               <div className="communication-entry" key={item.id}>
-                <StatusBadge label={item.channel} tone="violet" />
+                <StatusBadge label={humanizeCode(item.channel)} tone="violet" />
                 <p>
                   <b>
-                    {item.party} · {item.direction}
+                    {item.party} · {humanizeCode(item.direction)}
                   </b>
                   <small>{item.summary}</small>
                 </p>
@@ -353,6 +502,58 @@ export function StagingLoadOperations({
             body="Persisted calls, emails, and SMS summaries will appear here."
           />
         )}
+        {load.canManageLoad && (
+          <form
+            className="record-action-form inline-record-form"
+            action={addCommunication}
+          >
+            <HiddenFields slug={slug} loadId={load.id} />
+            <label>
+              Channel
+              <select name="channel">
+                <option value="PHONE">Phone</option>
+                <option value="EMAIL">Email</option>
+                <option value="SMS">SMS</option>
+                <option value="INTERNAL_NOTE">Internal note</option>
+              </select>
+            </label>
+            <label>
+              Party
+              <select name="partyType">
+                <option value="CUSTOMER">Customer</option>
+                <option value="CARRIER">Carrier</option>
+                <option value="DRIVER">Driver</option>
+              </select>
+            </label>
+            <label>
+              Contact name
+              <input name="partyName" required />
+            </label>
+            <label>
+              Direction
+              <select name="direction">
+                <option value="OUTBOUND">Outbound</option>
+                <option value="INBOUND">Inbound</option>
+              </select>
+            </label>
+            <label>
+              Occurred at
+              <input
+                name="occurredAt"
+                type="datetime-local"
+                defaultValue={nowLocal()}
+                required
+              />
+            </label>
+            <label>
+              Summary
+              <textarea name="summary" required />
+            </label>
+            <button className="button button-secondary">
+              Record communication
+            </button>
+          </form>
+        )}
       </OperationsSection>
       <OperationsSection id="documents" title="Documents" eyebrow="Paperwork">
         <InactiveState
@@ -360,11 +561,7 @@ export function StagingLoadOperations({
           body="Uploads, document classification, and verification are intentionally unavailable in staging."
         />
       </OperationsSection>
-      <OperationsSection
-        id="timeline"
-        title="Tasks and timeline"
-        eyebrow="Execution follow-up"
-      >
+      <OperationsSection id="tasks" title="Tasks" eyebrow="Execution follow-up">
         {load.tasks.length ? (
           <div className="simple-directory">
             {load.tasks.map((task) => (
@@ -372,12 +569,19 @@ export function StagingLoadOperations({
                 <b>{task.title}</b>
                 <span>{task.assignee}</span>
                 <StatusBadge
-                  label={task.status}
+                  label={humanizeCode(task.status)}
                   tone={task.status === "OPEN" ? "amber" : "green"}
                 />
                 <span>
                   {task.dueAt ? shortDate(task.dueAt) : "No due date"}
                 </span>
+                {task.status === "OPEN" && load.canManageLoad && (
+                  <form action={completeTask}>
+                    <HiddenFields slug={slug} loadId={load.id} />
+                    <input type="hidden" name="taskId" value={task.id} />
+                    <button className="button button-ghost">Complete</button>
+                  </form>
+                )}
               </div>
             ))}
           </div>
@@ -387,6 +591,56 @@ export function StagingLoadOperations({
             body="Assigned follow-up tasks will appear here."
           />
         )}
+        {load.canManageLoad && (
+          <form
+            className="record-action-form inline-record-form"
+            action={createTask}
+          >
+            <HiddenFields slug={slug} loadId={load.id} />
+            <label>
+              Task
+              <input name="title" required />
+            </label>
+            <label>
+              Owner
+              <select name="assigneeId" required>
+                <option value="">Select owner</option>
+                {load.members.map((member) => (
+                  <option value={member.id} key={member.id}>
+                    {member.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Due date
+              <input name="dueAt" type="datetime-local" />
+            </label>
+            <button className="button button-secondary">Create task</button>
+          </form>
+        )}
+      </OperationsSection>
+      <OperationsSection
+        id="timeline"
+        title="Timeline"
+        eyebrow="Operational history"
+      >
+        <div className="timeline-list">
+          {load.audits.map((event) => (
+            <div className="timeline-row" key={`timeline-${event.id}`}>
+              <span className="activity-icon violet">✓</span>
+              <p>
+                <b>
+                  {humanizeAuditActivity({
+                    action: event.action,
+                    subject: load.number,
+                  })}
+                </b>
+                <small>{relativeTime(event.createdAt)}</small>
+              </p>
+            </div>
+          ))}
+        </div>
       </OperationsSection>
       <OperationsSection
         id="audit"
@@ -400,7 +654,7 @@ export function StagingLoadOperations({
               <span className="activity-icon green">✓</span>
               <p>
                 <b>{event.action}</b>
-                <small>{event.entityType}</small>
+                <small>{humanizeCode(event.entityType)}</small>
               </p>
             </div>
           ))}
@@ -439,9 +693,51 @@ export function StagingLoadOperations({
                 {load.quotes.map((quote) => (
                   <div className="directory-row" key={quote.id}>
                     <b>{money(quote.amount)}</b>
-                    <StatusBadge label={quote.status} tone="blue" />
+                    <StatusBadge
+                      label={humanizeCode(quote.status)}
+                      tone="blue"
+                    />
                     <span>{quote.currency}</span>
                     <span>{quote.assumptions ?? "No assumptions"}</span>
+                    {quote.status === "DRAFT" &&
+                      quote.createdById !== load.currentUserId &&
+                      load.canApprove && (
+                        <form action={approveQuote}>
+                          <HiddenFields slug={slug} loadId={load.id} />
+                          <input
+                            type="hidden"
+                            name="quoteId"
+                            value={quote.id}
+                          />
+                          <input
+                            type="hidden"
+                            name="idempotencyKey"
+                            value={randomUUID()}
+                          />
+                          <button className="button button-secondary">
+                            Approve quote
+                          </button>
+                        </form>
+                      )}
+                    {quote.status === "APPROVED" && load.canManageQuotes && (
+                      <form className="inline-action-form" action={acceptQuote}>
+                        <HiddenFields slug={slug} loadId={load.id} />
+                        <input type="hidden" name="quoteId" value={quote.id} />
+                        <input
+                          type="hidden"
+                          name="idempotencyKey"
+                          value={randomUUID()}
+                        />
+                        <input
+                          name="evidence"
+                          placeholder="Customer acceptance evidence"
+                          required
+                        />
+                        <button className="button button-secondary">
+                          Record decision
+                        </button>
+                      </form>
+                    )}
                   </div>
                 ))}
               </div>
@@ -450,6 +746,35 @@ export function StagingLoadOperations({
                 title="No quote recorded"
                 body="Human-created quotes will appear here after review."
               />
+            )}
+            {load.canManageQuotes && (
+              <form
+                className="record-action-form inline-record-form"
+                action={createQuote}
+              >
+                <HiddenFields slug={slug} loadId={load.id} />
+                <input
+                  type="hidden"
+                  name="shipmentRequestId"
+                  value={load.requestId}
+                />
+                <label>
+                  Customer quote
+                  <input
+                    name="amount"
+                    inputMode="decimal"
+                    placeholder="$2,850.00"
+                    required
+                  />
+                </label>
+                <label>
+                  Assumptions
+                  <textarea name="assumptions" />
+                </label>
+                <button className="button button-secondary">
+                  Create quote
+                </button>
+              </form>
             )}
           </OperationsSection>
           <OperationsSection
@@ -463,7 +788,7 @@ export function StagingLoadOperations({
                   <div className="directory-row" key={candidate.id}>
                     <b>{candidate.name}</b>
                     <StatusBadge
-                      label={candidate.status}
+                      label={humanizeCode(candidate.status)}
                       tone={candidate.status === "BLOCKED" ? "red" : "green"}
                     />
                     <span>
@@ -476,6 +801,25 @@ export function StagingLoadOperations({
                         ? "Insurance confirmed"
                         : "Insurance unconfirmed"}
                     </span>
+                    <span>{formatUsdFromCents(candidate.coverage)}</span>
+                    {candidate.status === "QUALIFIED" && load.canApprove && (
+                      <form action={selectCarrier}>
+                        <HiddenFields slug={slug} loadId={load.id} />
+                        <input
+                          type="hidden"
+                          name="candidateId"
+                          value={candidate.id}
+                        />
+                        <input
+                          type="hidden"
+                          name="idempotencyKey"
+                          value={randomUUID()}
+                        />
+                        <button className="button button-secondary">
+                          Select carrier
+                        </button>
+                      </form>
+                    )}
                   </div>
                 ))}
               </div>
@@ -484,6 +828,45 @@ export function StagingLoadOperations({
                 title="No candidates entered"
                 body="Carrier sourcing records will appear here."
               />
+            )}
+            {load.canManageLoad && (
+              <form
+                className="record-action-form inline-record-form"
+                action={addCandidate}
+              >
+                <HiddenFields slug={slug} loadId={load.id} />
+                <label>
+                  Carrier business
+                  <input name="carrierName" required />
+                </label>
+                <label className="check-card">
+                  <input name="authorityConfirmed" type="checkbox" />
+                  <span>Authority manually confirmed</span>
+                </label>
+                <label className="check-card">
+                  <input name="insuranceConfirmed" type="checkbox" />
+                  <span>Insurance manually confirmed</span>
+                </label>
+                <label>
+                  Cargo coverage
+                  <input
+                    name="cargoCoverage"
+                    inputMode="decimal"
+                    placeholder="$100,000.00"
+                  />
+                </label>
+                <label>
+                  Offered rate
+                  <input
+                    name="quotedCost"
+                    inputMode="decimal"
+                    placeholder="$2,180.00"
+                  />
+                </label>
+                <button className="button button-secondary">
+                  Add carrier option
+                </button>
+              </form>
             )}
           </OperationsSection>
         </>
@@ -519,4 +902,22 @@ function maskPhone(phone?: string) {
   if (!phone) return "Not recorded";
   const digits = phone.replace(/\D/g, "");
   return `•••-•••-${digits.slice(-4)}`;
+}
+
+function HiddenFields({ slug, loadId }: { slug: string; loadId: string }) {
+  return (
+    <>
+      <input type="hidden" name="organizationSlug" value={slug} />
+      <input type="hidden" name="loadId" value={loadId} />
+      <input
+        type="hidden"
+        name="returnPath"
+        value={`/org/${slug}/loads/${loadId}`}
+      />
+    </>
+  );
+}
+
+function nowLocal() {
+  return new Date().toISOString().slice(0, 16);
 }

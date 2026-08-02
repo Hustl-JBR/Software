@@ -80,8 +80,7 @@ export default async function RootLayout({
               </div>
               <div className="topbar-actions">
                 <span className="system-status">
-                  <i />{" "}
-                  {demo ? "Demo systems ready" : "Persistent staging online"}
+                  <i /> {demo ? "Demo systems ready" : "Atlas systems online"}
                 </span>
                 <button
                   className="icon-button"

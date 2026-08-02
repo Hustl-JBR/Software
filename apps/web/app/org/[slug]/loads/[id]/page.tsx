@@ -8,6 +8,7 @@ import {
   type StagingLoadOperationsView,
 } from "@/app/ui/staging-load-operations";
 import { requireStagingWorkspace } from "@/lib/staging-workspace";
+import { z } from "zod";
 
 type LoadView = {
   id: string;
@@ -40,14 +41,24 @@ type LoadView = {
 
 export default async function LoadDetail({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string; id: string }>;
+  searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
   const { slug, id } = await params;
   if (!isDemoMode()) {
     const stagingLoad = await stagingLoadView(slug, id);
     if (!stagingLoad) notFound();
-    return <StagingLoadOperations slug={slug} load={stagingLoad} />;
+    const query = await searchParams;
+    return (
+      <StagingLoadOperations
+        slug={slug}
+        load={stagingLoad}
+        saved={query.saved}
+        error={query.error}
+      />
+    );
   }
   if (
     isDemoMode() &&
@@ -444,7 +455,8 @@ async function stagingLoadView(
   slug: string,
   id: string,
 ): Promise<StagingLoadOperationsView | undefined> {
-  const { membership } = await requireStagingWorkspace(slug);
+  if (!z.string().uuid().safeParse(id).success) return undefined;
+  const { userId, membership, roles } = await requireStagingWorkspace(slug);
   const organizationId = membership.organizationId;
   const load = await prisma.load.findUnique({
     where: { organizationId_id: { organizationId, id } },
@@ -463,6 +475,15 @@ async function stagingLoadView(
     },
   });
   if (!load) return undefined;
+  const members = await prisma.organizationMembership.findMany({
+    where: {
+      organizationId,
+      status: "ACTIVE",
+      user: { active: true },
+    },
+    include: { user: true },
+    orderBy: { user: { name: "asc" } },
+  });
   const audits = await prisma.auditEvent.findMany({
     where: {
       organizationId,
@@ -479,12 +500,11 @@ async function stagingLoadView(
     orderBy: { createdAt: "desc" },
     take: 50,
   });
-  const roleNames = new Set([
-    membership.role,
-    ...membership.roles.map((role) => role.role),
-  ]);
+  const roleNames = new Set(roles);
   return {
     id: load.id,
+    requestId: load.shipmentRequestId,
+    currentUserId: userId,
     number: load.loadNumber,
     status: load.status,
     customer: load.customer.name,
@@ -493,6 +513,7 @@ async function stagingLoadView(
     equipment: load.equipmentType,
     owner: load.primaryOwner?.name ?? "Unassigned",
     nextAction: load.nextAction ?? "Review load readiness",
+    members: members.map((item) => ({ id: item.userId, name: item.user.name })),
     pickup: load.pickupDate,
     delivery: load.deliveryDate,
     stops: load.stops.map((stop) => ({
@@ -519,6 +540,10 @@ async function stagingLoadView(
           ? undefined
           : Number(candidate.quotedCostCents),
       reason: candidate.blockReason ?? undefined,
+      coverage:
+        candidate.cargoCoverageCents === null
+          ? undefined
+          : Number(candidate.cargoCoverageCents),
     })),
     driver: load.driverAssignment
       ? {
@@ -564,7 +589,11 @@ async function stagingLoadView(
       amount: Number(quote.amountCents),
       currency: quote.currency,
       assumptions: quote.assumptions ?? undefined,
+      createdById: quote.createdById,
     })),
     canViewCommercials: roleNames.has("APPROVER") || roleNames.has("OPERATOR"),
+    canManageLoad: roleNames.has("APPROVER") || roleNames.has("OPERATOR"),
+    canManageQuotes: roleNames.has("APPROVER"),
+    canApprove: roleNames.has("APPROVER"),
   };
 }

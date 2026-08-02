@@ -10,6 +10,7 @@ import {
   getDemoRequests,
   isDemoMode,
 } from "@/lib/demo-store";
+import { effectiveRoles } from "@atlas/auth/membership";
 
 const activeLoads = [
   {
@@ -70,7 +71,7 @@ export default async function Dashboard({
   if (!userId) redirect("/sign-in");
   const membership = await prisma.organizationMembership.findFirst({
     where: { userId, status: "ACTIVE", organization: { slug } },
-    include: { organization: true, user: true },
+    include: { organization: true, user: true, roles: true },
   });
   if (!membership) notFound();
   return (
@@ -80,7 +81,10 @@ export default async function Dashboard({
       organizationName={membership.organization.name}
       userId={userId}
       userName={membership.user.name}
-      role={membership.role}
+      role={effectiveRoles(
+        membership.role,
+        membership.roles.map((item) => item.role),
+      ).join(" + ")}
       error={(await searchParams).error}
     />
   );

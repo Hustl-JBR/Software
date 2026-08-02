@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@atlas/db/client";
 import { getSessionUserId } from "@/lib/session";
+import { effectiveRoles } from "@atlas/auth/membership";
 
 export async function requireStagingWorkspace(slug: string) {
   const userId = await getSessionUserId();
@@ -14,5 +15,9 @@ export async function requireStagingWorkspace(slug: string) {
     },
   });
   if (!membership) notFound();
-  return { userId, membership };
+  const roles = effectiveRoles(
+    membership.role,
+    membership.roles.map((item) => item.role),
+  );
+  return { userId, membership, roles };
 }

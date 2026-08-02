@@ -350,7 +350,7 @@ export function StagingSettingsWorkspace({
             </div>
             <div>
               <dt>Environment</dt>
-              <dd>Persistent staging</dd>
+              <dd>Staging environment</dd>
             </div>
           </dl>
         </section>

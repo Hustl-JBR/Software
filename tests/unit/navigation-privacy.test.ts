@@ -12,6 +12,7 @@ describe("demo navigation", () => {
   it("defines every sidebar route", () => {
     const items = [...demoNavigation, ...workspaceNavigation];
     expect(items.map((item) => item.label)).toEqual([
+      "Operations",
       "Command center",
       "Loads",
       "Tracking",
