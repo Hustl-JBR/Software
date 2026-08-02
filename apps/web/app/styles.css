@@ -5344,3 +5344,10 @@ main,
   justify-self: center;
   width: min(100%, 780px);
 }
+
+@media (max-width: 480px) {
+  .operations-tabs.section-tabs {
+    width: 100%;
+    max-width: 100%;
+  }
+}
