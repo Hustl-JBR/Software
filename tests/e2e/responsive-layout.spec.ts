@@ -17,12 +17,38 @@ const viewports = [
 ] as const;
 
 async function assertNoPageOverflow(page: Page, label: string) {
-  const dimensions = await page.evaluate(() => ({
-    htmlClient: document.documentElement.clientWidth,
-    htmlScroll: document.documentElement.scrollWidth,
-    bodyClient: document.body.clientWidth,
-    bodyScroll: document.body.scrollWidth,
-  }));
+  let dimensions:
+    | {
+        htmlClient: number;
+        htmlScroll: number;
+        bodyClient: number;
+        bodyScroll: number;
+      }
+    | undefined;
+  await expect
+    .poll(
+      async () => {
+        try {
+          dimensions = await page.evaluate(() => ({
+            htmlClient: document.documentElement.clientWidth,
+            htmlScroll: document.documentElement.scrollWidth,
+            bodyClient: document.body.clientWidth,
+            bodyScroll: document.body.scrollWidth,
+          }));
+          return true;
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            error.message.includes("Execution context was destroyed")
+          )
+            return false;
+          throw error;
+        }
+      },
+      { message: `${label}: wait for stable page dimensions` },
+    )
+    .toBe(true);
+  if (!dimensions) throw new Error(`${label}: page dimensions unavailable`);
   expect(dimensions.htmlScroll, `${label}: html overflow`).toBeLessThanOrEqual(
     dimensions.htmlClient,
   );
@@ -116,7 +142,7 @@ test("all major staging routes remain usable across the approved viewport matrix
   for (const viewport of viewports) {
     await page.setViewportSize(viewport);
     for (const route of routes) {
-      await page.goto(route.path);
+      await page.goto(route.path, { waitUntil: "networkidle" });
       await expect(page.locator("main")).toBeVisible();
       await assertNoPageOverflow(page, `${viewport.width}/${route.name}`);
 
