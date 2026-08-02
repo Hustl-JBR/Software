@@ -3,6 +3,7 @@ import { isDemoMode } from "@/lib/demo-store";
 import { SidebarNav } from "@/app/ui/sidebar-nav";
 import { getSessionUserId } from "@/lib/session";
 import { prisma } from "@atlas/db/client";
+import { MobileNavigation } from "@/app/ui/mobile-navigation";
 
 import "./styles.css";
 
@@ -50,6 +51,13 @@ export default async function RootLayout({
     <html lang="en">
       <body>
         <div className="app-shell">
+          <MobileNavigation
+            slug={slug}
+            commandHref={commandHref}
+            loadCount={loadCount}
+            demo={demo}
+            profile={profile}
+          />
           <aside className="sidebar">
             <div className="sidebar-top">
               <Link className="brand" href={commandHref}>
@@ -57,7 +65,7 @@ export default async function RootLayout({
                 <span className="brand-word">ATLAS</span>
               </Link>
               <span className={`demo-label ${demo ? "" : "staging-label"}`}>
-                {demo ? "DEMO" : "STAGING"}
+                {demo ? "DEMO" : "STAGING · POSTGRESQL"}
               </span>
             </div>
             {slug && <SidebarNav slug={slug} loadCount={loadCount} />}
@@ -80,8 +88,7 @@ export default async function RootLayout({
               </div>
               <div className="topbar-actions">
                 <span className="system-status">
-                  <i />{" "}
-                  {demo ? "Demo systems ready" : "Persistent staging online"}
+                  <i /> {demo ? "Demo systems ready" : "Atlas systems online"}
                 </span>
                 <button
                   className="icon-button"

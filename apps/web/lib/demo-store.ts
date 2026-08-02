@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   validateCandidate,
+  type EquipmentType,
   type ShipmentCandidate,
   type ShipmentIssue,
 } from "../../../packages/domain/shipment";
@@ -43,7 +44,7 @@ export type DemoLoad = {
   customer: { name: string };
   commodity: string;
   weightPounds: number;
-  equipmentType: "DRY_VAN";
+  equipmentType: EquipmentType;
   pickupDate: Date;
   deliveryDate: Date;
   approvedRevision: { revisionNumber: number };

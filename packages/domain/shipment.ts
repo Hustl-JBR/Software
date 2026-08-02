@@ -22,6 +22,22 @@ const isoDate = z
     );
   }, "Enter a valid calendar date");
 
+export const equipmentTypes = [
+  "DRY_VAN",
+  "REEFER",
+  "FLATBED",
+  "STEP_DECK",
+  "CONESTOGA",
+  "LOWBOY",
+  "RGN",
+  "POWER_ONLY",
+  "BOX_TRUCK",
+  "SPRINTER",
+  "HOTSHOT",
+  "TANKER",
+] as const;
+export type EquipmentType = (typeof equipmentTypes)[number];
+
 const shipmentCandidateObject = z.object({
   customerName: requiredText("Customer or shipper name"),
   originFacilityName: requiredText("Origin facility name"),
@@ -36,7 +52,8 @@ const shipmentCandidateObject = z.object({
   deliveryDate: isoDate,
   commodity: requiredText("Commodity"),
   weightPounds: z.coerce.number().int().positive().max(80_000),
-  equipmentType: z.literal("DRY_VAN"),
+  equipmentType: z.enum(equipmentTypes),
+  equipmentDetail: optionalText,
   pickupAppointmentStart: z
     .string()
     .datetime({ offset: true })
@@ -134,7 +151,8 @@ export function validateCandidate(
     success: false,
     issues: result.error.issues.map((issue) => ({
       type:
-        issue.code === "invalid_literal" && issue.path[0] === "equipmentType"
+        issue.path[0] === "equipmentType" &&
+        (issue.code === "invalid_enum_value" || issue.code === "invalid_type")
           ? "UNSUPPORTED"
           : issue.code === "invalid_type" || issue.code === "too_small"
             ? "MISSING"

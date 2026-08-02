@@ -11,6 +11,7 @@ import {
   addTrackingUpdate,
   approveQuote,
   assignDriver,
+  changeMembershipRoles,
   completeTask,
   confirmAppointment,
   createQuote,
@@ -213,6 +214,21 @@ describe.skipIf(!enabled)("persistent four-employee staging workflow", () => {
     ).toBeGreaterThanOrEqual(20);
   });
 
+  it("prevents a draft load from reporting an impossible physical position", async () => {
+    await expect(
+      addTrackingUpdate(operatorId, slug, {
+        loadId,
+        status: "IN_TRANSIT",
+        occurredAt: new Date(),
+      }),
+    ).rejects.toThrow("STATUS_CONFLICT");
+    expect(
+      await db.trackingUpdate.count({
+        where: { loadId, status: "IN_TRANSIT" },
+      }),
+    ).toBe(0);
+  });
+
   it("denies cross-organization reads and mutations", async () => {
     await expect(
       setLoadOwnership(outsiderId, otherSlug, {
@@ -226,5 +242,53 @@ describe.skipIf(!enabled)("persistent four-employee staging workflow", () => {
         where: { organizationId: { not: organizationId }, id: loadId },
       }),
     ).toBe(0);
+  });
+
+  it("revokes quote approval immediately when explicit roles are removed", async () => {
+    const demoted = await db.user.create({
+      data: {
+        name: "Demoted Approver",
+        email: `demoted-${randomUUID()}@test.invalid`,
+      },
+    });
+    const membership = await db.organizationMembership.create({
+      data: { organizationId, userId: demoted.id, role: "APPROVER" },
+    });
+    await db.organizationMembershipRole.create({
+      data: {
+        organizationId,
+        membershipId: membership.id,
+        userId: demoted.id,
+        role: "APPROVER",
+      },
+    });
+    const quoteId = await createQuote(creatorId, slug, {
+      shipmentRequestId: requestId,
+      amountCents: "275000",
+    });
+
+    await changeMembershipRoles(creatorId, slug, {
+      membershipId: membership.id,
+      roles: ["VIEWER"],
+    });
+
+    await expect(
+      approveQuote(demoted.id, slug, quoteId, randomUUID()),
+    ).rejects.toThrow("FORBIDDEN");
+    const updated = await db.organizationMembership.findUniqueOrThrow({
+      where: { id: membership.id },
+      include: { roles: true },
+    });
+    expect(updated.role).toBe("VIEWER");
+    expect(updated.roles.map((row) => row.role)).toEqual(["VIEWER"]);
+    const event = await db.auditEvent.findFirstOrThrow({
+      where: {
+        entityId: membership.id,
+        action: "MEMBERSHIP_ROLES_CHANGED",
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(event.beforeState).toMatchObject({ roles: ["APPROVER"] });
+    expect(event.afterState).toMatchObject({ roles: ["VIEWER"] });
   });
 });

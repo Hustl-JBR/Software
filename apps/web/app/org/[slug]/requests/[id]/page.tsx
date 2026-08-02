@@ -5,6 +5,8 @@ import { getSessionUserId } from "@/lib/session";
 import { approve, saveCorrection } from "@/app/actions";
 import { ShipmentForm } from "@/app/ui/shipment-form";
 import { ErrorAlert } from "@/app/ui/error-alert";
+import { effectiveRoles } from "@atlas/auth/membership";
+import { z } from "zod";
 import {
   DEMO_ORGANIZATION,
   DEMO_USER,
@@ -29,6 +31,7 @@ type ReviewRevision = {
 };
 type ReviewView = {
   role: string;
+  canApprove: boolean;
   request: { id: string; loadId?: string; revisions: ReviewRevision[] };
 };
 
@@ -40,9 +43,8 @@ export default async function Review({
   searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
   const { slug, id } = await params;
-  const view = isDemoMode()
-    ? demoReviewView(slug, id)
-    : await realReviewView(slug, id);
+  const demo = isDemoMode();
+  const view = demo ? demoReviewView(slug, id) : await realReviewView(slug, id);
   if (!view) notFound();
   const { request, role } = view;
   if (request.loadId) redirect(`/org/${slug}/loads/${request.loadId}`);
@@ -50,9 +52,11 @@ export default async function Review({
   const values = revision.structuredData;
   const query = await searchParams;
   const valid = revision.issues.length === 0;
-  const confidence = valid
-    ? 100
-    : Math.max(72, 96 - revision.issues.length * 4);
+  const confidence = demo
+    ? valid
+      ? 100
+      : Math.max(72, 96 - revision.issues.length * 4)
+    : undefined;
   return (
     <>
       <div className="breadcrumb">
@@ -72,10 +76,11 @@ export default async function Review({
               {valid ? "Ready for approval" : "Action required"}
             </span>
           </div>
-          <h1>Review Atlas analysis</h1>
+          <h1>{demo ? "Review Atlas analysis" : "Review shipment details"}</h1>
           <p className="page-subtitle">
-            Atlas structured the request and highlighted what still needs human
-            judgment.
+            {demo
+              ? "Atlas structured the request and highlighted what still needs human judgment."
+              : "Deterministic extraction organized the submitted facts and highlighted fields that require human review."}
           </p>
         </div>
         <div className="revision-meta">
@@ -118,17 +123,25 @@ export default async function Review({
               <div className="analysis-title">
                 <span className="ai-orb large">✦</span>
                 <div>
-                  <p className="overline violet">Atlas intelligence</p>
-                  <h2>AI shipment analysis</h2>
+                  <p className="overline violet">
+                    {demo ? "Atlas intelligence" : "Deterministic extraction"}
+                  </p>
+                  <h2>
+                    {demo
+                      ? "AI shipment analysis"
+                      : "Extracted shipment details"}
+                  </h2>
                 </div>
               </div>
-              <div className="confidence">
-                <span>Confidence</span>
-                <strong>{confidence}%</strong>
-                <i>
-                  <b style={{ width: `${confidence}%` }} />
-                </i>
-              </div>
+              {confidence !== undefined && (
+                <div className="confidence">
+                  <span>Synthetic confidence</span>
+                  <strong>{confidence}%</strong>
+                  <i>
+                    <b style={{ width: `${confidence}%` }} />
+                  </i>
+                </div>
+              )}
             </div>
             <div className="shipment-summary">
               <span className="summary-icon">↗</span>
@@ -140,15 +153,12 @@ export default async function Review({
             <div className="analysis-facts">
               <AnalysisFact
                 label="Detected equipment"
-                value={String(values.equipmentType ?? "Not detected").replace(
-                  "DRY_VAN",
-                  "Dry van",
-                )}
+                value={equipmentLabel(values.equipmentType)}
                 icon="▣"
               />
               <AnalysisFact
                 label="Estimated transit"
-                value="1 day · 248 mi"
+                value={demo ? "1 day · 248 mi (synthetic)" : "Not calculated"}
                 icon="◷"
               />
               <AnalysisFact
@@ -161,10 +171,12 @@ export default async function Review({
               <div>
                 <p className="analysis-label">Potential risks</p>
                 <div className="signal-list">
-                  <span className="signal amber">
-                    <i>!</i>
-                    <b>Weight is 62% of dry van capacity</b>
-                  </span>
+                  {demo && (
+                    <span className="signal amber">
+                      <i>!</i>
+                      <b>Synthetic capacity example: 62%</b>
+                    </span>
+                  )}
                   <span className="signal neutral">
                     <i>◷</i>
                     <b>Appointment windows not specified</b>
@@ -281,7 +293,7 @@ export default async function Review({
               Creates one draft load and two stops. This action is idempotent
               and fully audited.
             </p>
-            {role === "APPROVER" ? (
+            {view.canApprove ? (
               <form action={approve}>
                 <input type="hidden" name="organizationSlug" value={slug} />
                 <input type="hidden" name="requestId" value={request.id} />
@@ -296,8 +308,10 @@ export default async function Review({
                   <span>
                     <b>I reviewed this exact revision</b>
                     <small>
-                      Revision {revision.revisionNumber} · {confidence}%
-                      confidence
+                      Revision {revision.revisionNumber}
+                      {confidence !== undefined
+                        ? ` · ${confidence}% synthetic confidence`
+                        : " · deterministic validation"}
                     </small>
                   </span>
                 </label>
@@ -374,6 +388,21 @@ function summary(values: Record<string, unknown>) {
   return `Move ${number(values.palletCount)} pallets of ${String(values.commodity ?? "freight").toLowerCase()} from ${String(values.originCity ?? "origin")} to ${String(values.destinationCity ?? "destination")}.`;
 }
 function fieldLabel(field: string) {
+  const labels: Record<string, string> = {
+    customerName: "Customer or shipper",
+    originFacilityName: "Pickup facility name",
+    originCity: "Pickup city",
+    originState: "Pickup state",
+    originPostalCode: "Pickup ZIP code",
+    destinationFacilityName: "Delivery facility name",
+    destinationCity: "Delivery city",
+    destinationState: "Delivery state",
+    destinationPostalCode: "Delivery ZIP code",
+    weightPounds: "Shipment weight",
+    equipmentType: "Equipment",
+    originalText: "Original request",
+  };
+  if (labels[field]) return labels[field];
   return field
     .replace(/([A-Z])/g, " $1")
     .replace(/^./, (letter) => letter.toUpperCase());
@@ -384,6 +413,7 @@ function demoReviewView(slug: string, id: string): ReviewView | undefined {
   if (!request) return undefined;
   return {
     role: DEMO_USER.role,
+    canApprove: true,
     request: {
       id: request.id,
       loadId: request.loadId,
@@ -395,10 +425,12 @@ async function realReviewView(
   slug: string,
   id: string,
 ): Promise<ReviewView | undefined> {
+  if (!z.string().uuid().safeParse(id).success) return undefined;
   const userId = await getSessionUserId();
   if (!userId) redirect("/sign-in");
   const membership = await prisma.organizationMembership.findFirst({
     where: { userId, status: "ACTIVE", organization: { slug } },
+    include: { roles: true },
   });
   if (!membership) return undefined;
   const request = await prisma.shipmentRequest.findUnique({
@@ -414,8 +446,13 @@ async function realReviewView(
     },
   });
   if (!request) return undefined;
+  const roles = effectiveRoles(
+    membership.role,
+    membership.roles.map((item) => item.role),
+  );
   return {
-    role: membership.role,
+    role: roles.join(" + "),
+    canApprove: roles.includes("APPROVER"),
     request: {
       id: request.id,
       loadId: request.load?.id,
@@ -425,4 +462,12 @@ async function realReviewView(
       })),
     },
   };
+}
+
+function equipmentLabel(value: unknown) {
+  if (typeof value !== "string" || !value) return "Not provided";
+  return value
+    .toLowerCase()
+    .replaceAll("_", " ")
+    .replace(/^./, (letter) => letter.toUpperCase());
 }

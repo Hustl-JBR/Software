@@ -11,6 +11,10 @@
 - Every meaningful change updates `CURRENT_STATE.md` and `IMPLEMENTATION_HISTORY.md`.
 - Staging authentication uses maintained Better Auth email/password credentials with its Prisma adapter, server-validated eight-hour database sessions, disabled public sign-up, and Atlas-owned organization membership/authorization. No email provider is connected.
 - Staging uses one isolated Railway web service plus one private PostgreSQL service. No production environment, Redis, worker, cron, object storage, custom domain, or third-party freight provider is authorized.
-- Multiple employee roles are additive organization-membership role rows. The legacy primary role remains for compatibility during this milestone; authorization evaluates the union server-side and role changes are audited.
+- Explicit organization-membership role rows are authoritative whenever present. The legacy primary role is fallback/compatibility data only, is synchronized on role changes, and is never unioned back into an explicit assignment. Audits capture previous and new role sets.
 - Carrier qualification in staging records a human-entered assertion only. It never claims FMCSA or insurer verification, and unconfirmed authority/insurance or insufficient synthetic cargo coverage is blocked.
 - Staging deployment is fail-closed: migrations, PostgreSQL integration tests, the guarded synthetic seed, and the guarded two-user persistence/isolation check all run before a web release is promoted.
+- Railway PostgreSQL remains the sole application datastore and Better Auth remains the sole authentication system. Supabase is not introduced in this milestone.
+- The employee entry point is `/operations`; synthetic developer controls are isolated at `/internal/staging-tools` and require the staging administrator capability bundle.
+- One authoritative load status is supplemented by readiness blockers and exceptions. DRAFT cannot coexist with a physical tracking milestone.
+- Employee USD inputs accept dollars while persistence remains integer cents.

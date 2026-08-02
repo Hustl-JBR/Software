@@ -5,7 +5,7 @@ export function EnvironmentChip({ mode }: { mode: "demo" | "staging" }) {
     <span
       className={`synthetic-chip ${mode === "staging" ? "stage-chip" : ""}`}
     >
-      {mode === "staging" ? "Persistent staging" : "Synthetic demo data"}
+      {mode === "staging" ? "STAGING" : "Synthetic demo data"}
     </span>
   );
 }

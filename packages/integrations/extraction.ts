@@ -33,10 +33,7 @@ export class DeterministicMockExtractionAdapter
     structured: Record<string, unknown>;
   }): Promise<ExtractionResult> {
     const parsed = candidateInputSchema.parse(input.structured);
-    const candidates: Record<string, unknown> = {
-      equipmentType: "DRY_VAN",
-      ...withoutEmpty(parsed),
-    };
+    const candidates: Record<string, unknown> = { ...withoutEmpty(parsed) };
     const sourceReferences: Record<string, string> = {};
     for (const [field, pattern] of Object.entries(patterns)) {
       const match = input.originalText.match(pattern);

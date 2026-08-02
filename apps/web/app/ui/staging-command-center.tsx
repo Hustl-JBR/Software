@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@atlas/db/client";
 import { ErrorAlert } from "./error-alert";
 import { signOut } from "@/app/actions";
+import { humanizeAuditActivity, humanizeCode } from "@/lib/activity-language";
 
 export async function StagingCommandCenter({
   slug,
@@ -46,7 +47,10 @@ export async function StagingCommandCenter({
     }),
     prisma.task.findMany({
       where: { organizationId, status: "OPEN" },
-      include: { assignee: true, load: true },
+      include: {
+        assignee: true,
+        load: { include: { stops: { orderBy: { sequence: "asc" } } } },
+      },
       orderBy: [{ dueAt: "asc" }, { createdAt: "desc" }],
       take: 12,
     }),
@@ -59,6 +63,12 @@ export async function StagingCommandCenter({
   const activeLoads = requests.flatMap((request) =>
     request.load ? [request.load] : [],
   );
+  const laneFor = (stops: Array<{ city: string; state: string }>) => {
+    const origin = stops[0];
+    const destination = stops.at(-1);
+    if (!origin || !destination) return "Lane pending";
+    return `${origin.city}, ${origin.state} → ${destination.city}, ${destination.state}`;
+  };
   const attention = [
     ...requests.flatMap((request) => {
       const issueCount = request.revisions[0]?.issues.length ?? 0;
@@ -66,8 +76,16 @@ export async function StagingCommandCenter({
         return [
           {
             id: `issues-${request.id}`,
-            title: `${issueCount} shipment ${issueCount === 1 ? "detail" : "details"} missing`,
-            detail: `Request ${request.id.slice(0, 8)} needs human review before approval.`,
+            severity: "High",
+            load:
+              request.load?.loadNumber ?? `Request ${request.id.slice(0, 8)}`,
+            lane: request.load
+              ? laneFor(request.load.stops)
+              : "Lane awaiting completion",
+            issue: `${issueCount} shipment ${issueCount === 1 ? "detail is" : "details are"} missing`,
+            owner: request.load?.primaryOwner?.name ?? "Intake team",
+            deadline: "Before approval",
+            action: "Review shipment",
             href: `/org/${slug}/requests/${request.id}`,
             tone: "amber",
           },
@@ -77,9 +95,19 @@ export async function StagingCommandCenter({
         return [
           {
             id: `quote-${quote.id}`,
-            title: "Quote awaiting approval",
-            detail: `Request ${request.id.slice(0, 8)} has a draft quote ready for a second reviewer.`,
-            href: `/org/${slug}/staging`,
+            severity: "Review",
+            load:
+              request.load?.loadNumber ?? `Request ${request.id.slice(0, 8)}`,
+            lane: request.load
+              ? laneFor(request.load.stops)
+              : "Lane awaiting completion",
+            issue: "Draft quote needs a second reviewer",
+            owner: request.load?.primaryOwner?.name ?? "Pricing team",
+            deadline: "Before customer release",
+            action: "Review pricing",
+            href: request.load
+              ? `/org/${slug}/loads/${request.load.id}#pricing`
+              : `/org/${slug}/requests/${request.id}`,
             tone: "blue",
           },
         ];
@@ -92,8 +120,13 @@ export async function StagingCommandCenter({
         return [
           {
             id: `carrier-${request.load.id}`,
-            title: "Carrier review required",
-            detail: `${request.load.loadNumber} does not have a selected carrier.`,
+            severity: "High",
+            load: request.load.loadNumber,
+            lane: laneFor(request.load.stops),
+            issue: "No carrier has been selected",
+            owner: request.load.primaryOwner?.name ?? "Coverage team",
+            deadline: `Pickup ${request.load.pickupDate.toLocaleDateString()}`,
+            action: "Source carrier",
             href: `/org/${slug}/loads/${request.load.id}`,
             tone: "amber",
           },
@@ -102,11 +135,14 @@ export async function StagingCommandCenter({
     }),
     ...tasks.map((task) => ({
       id: `task-${task.id}`,
-      title: task.title,
-      detail: `${task.assignee.name}${task.dueAt ? ` · due ${task.dueAt.toLocaleString()}` : " · no due time"}`,
-      href: task.loadId
-        ? `/org/${slug}/loads/${task.loadId}`
-        : `/org/${slug}/staging`,
+      severity: task.dueAt && task.dueAt < new Date() ? "Overdue" : "Task",
+      load: task.load?.loadNumber ?? "Operations task",
+      lane: task.load ? laneFor(task.load.stops) : "General operations",
+      issue: task.title,
+      owner: task.assignee.name,
+      deadline: task.dueAt ? task.dueAt.toLocaleString() : "No due time",
+      action: "Open task",
+      href: task.loadId ? `/org/${slug}/loads/${task.loadId}` : "/operations",
       tone: task.dueAt && task.dueAt < new Date() ? "red" : "blue",
     })),
   ];
@@ -114,7 +150,7 @@ export async function StagingCommandCenter({
     <>
       <div className="page-heading">
         <div>
-          <p className="overline">{organizationName} / Persistent operations</p>
+          <p className="overline">{organizationName} / Operations</p>
           <h1>Good morning, {userName.split(" ")[0]}.</h1>
           <p className="page-subtitle">
             Real organization data · {role}{" "}
@@ -142,14 +178,32 @@ export async function StagingCommandCenter({
         {attention.length ? (
           <div className="staging-attention-list">
             {attention.slice(0, 8).map((item) => (
-              <Link className="activity-row" href={item.href} key={item.id}>
-                <span className={`activity-icon ${item.tone}`}>!</span>
-                <span>
-                  <b>{item.title}</b>
-                  <small>{item.detail}</small>
-                </span>
-                <span className="inline-action">Review →</span>
-              </Link>
+              <article
+                className={`staging-attention-card ${item.tone}`}
+                key={item.id}
+              >
+                <div className="attention-card-kicker">
+                  <span className={`attention-severity ${item.tone}`}>
+                    {item.severity}
+                  </span>
+                  <strong>{item.load}</strong>
+                </div>
+                <p className="attention-lane">{item.lane}</p>
+                <h3>{item.issue}</h3>
+                <dl className="attention-meta">
+                  <div>
+                    <dt>Owner</dt>
+                    <dd>{item.owner}</dd>
+                  </div>
+                  <div>
+                    <dt>Deadline</dt>
+                    <dd>{item.deadline}</dd>
+                  </div>
+                </dl>
+                <Link className="button button-secondary" href={item.href}>
+                  {item.action} →
+                </Link>
+              </article>
             ))}
           </div>
         ) : (
@@ -188,6 +242,99 @@ export async function StagingCommandCenter({
           label="Manually tracked"
           detail="No live GPS connected"
         />
+      </section>
+      <section className="command-grid operations-today-grid">
+        <div className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="overline">Upcoming pickups</p>
+              <h2>Pickup schedule</h2>
+            </div>
+          </div>
+          {activeLoads.slice(0, 4).map((load) => (
+            <Link
+              className="activity-row"
+              href={`/org/${slug}/loads/${load.id}#stops`}
+              key={`pickup-${load.id}`}
+            >
+              <span className="activity-icon blue">1</span>
+              <span>
+                <b>
+                  {load.loadNumber} ·{" "}
+                  {load.stops[0]?.facilityName ?? "Facility pending"}
+                </b>
+                <small>
+                  {load.pickupDate.toLocaleDateString()} ·{" "}
+                  {load.primaryOwner?.name ?? "Owner needed"}
+                </small>
+              </span>
+            </Link>
+          ))}
+        </div>
+        <div className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="overline">Upcoming deliveries</p>
+              <h2>Delivery schedule</h2>
+            </div>
+          </div>
+          {activeLoads.slice(0, 4).map((load) => (
+            <Link
+              className="activity-row"
+              href={`/org/${slug}/loads/${load.id}#stops`}
+              key={`delivery-${load.id}`}
+            >
+              <span className="activity-icon green">2</span>
+              <span>
+                <b>
+                  {load.loadNumber} ·{" "}
+                  {load.stops.at(-1)?.facilityName ?? "Facility pending"}
+                </b>
+                <small>
+                  {load.deliveryDate.toLocaleDateString()} ·{" "}
+                  {load.nextAction ?? "Review next action"}
+                </small>
+              </span>
+            </Link>
+          ))}
+        </div>
+        <div className="panel">
+          <div className="panel-heading">
+            <div>
+              <p className="overline">Customer follow-ups</p>
+              <h2>Commercial decisions</h2>
+            </div>
+          </div>
+          {requests
+            .filter(
+              (request) =>
+                request.quotes[0] && request.quotes[0].status !== "ACCEPTED",
+            )
+            .slice(0, 4)
+            .map((request) => (
+              <Link
+                className="activity-row"
+                href={
+                  request.load
+                    ? `/org/${slug}/loads/${request.load.id}#pricing`
+                    : `/org/${slug}/requests/${request.id}`
+                }
+                key={`followup-${request.id}`}
+              >
+                <span className="activity-icon amber">!</span>
+                <span>
+                  <b>
+                    {request.load?.customer.name ??
+                      `Request ${request.id.slice(0, 8)}`}
+                  </b>
+                  <small>
+                    {humanizeCode(request.quotes[0].status)} quote · customer
+                    decision needed
+                  </small>
+                </span>
+              </Link>
+            ))}
+        </div>
       </section>
       <section className="command-grid staging-command-grid">
         <div className="panel active-loads-panel">
@@ -229,7 +376,9 @@ export async function StagingCommandCenter({
                     <small>Manual updates</small>
                   </span>
                   <span>
-                    <span className="status-pill blue">{load.status}</span>
+                    <span className="status-pill blue">
+                      {humanizeCode(load.status)}
+                    </span>
                     <small>{load.nextAction ?? "Next action not set"}</small>
                   </span>
                 </Link>
@@ -256,16 +405,23 @@ export async function StagingCommandCenter({
           <div className="panel-heading">
             <div>
               <p className="overline">Recent activity</p>
-              <h2>Persistent event feed</h2>
+              <h2>Meaningful operational activity</h2>
             </div>
           </div>
           {audits.map((event) => (
             <div className="activity-row" key={event.id}>
               <span className="activity-icon violet">✓</span>
               <span>
-                <b>{event.action.replaceAll("_", " ")}</b>
+                <b>
+                  {humanizeAuditActivity({
+                    action: event.action,
+                    actorName:
+                      event.actorId === userId ? userName : "A team member",
+                  })}
+                </b>
                 <small>
-                  {event.entityType} · {event.createdAt.toLocaleString()}
+                  {humanizeCode(event.entityType)} ·{" "}
+                  {event.createdAt.toLocaleString()}
                 </small>
               </span>
             </div>
@@ -274,11 +430,11 @@ export async function StagingCommandCenter({
       </section>
       <section className="panel onboarding-panel">
         <div>
-          <p className="overline">Staging operations drill</p>
-          <h2>Build confidence with test data only</h2>
+          <p className="overline">Operations</p>
+          <h2>Keep every load owned and actionable</h2>
           <p>
-            Use synthetic shipments, calls, carriers, tracking updates, and
-            tasks. No external provider is connected.
+            Review intake, open tasks, upcoming stops, and load-specific actions
+            without leaving the employee workspace.
           </p>
         </div>
         <div className="onboarding-actions">
@@ -294,8 +450,8 @@ export async function StagingCommandCenter({
           >
             Review carrier network
           </Link>
-          <Link className="button button-ghost" href={`/org/${slug}/staging`}>
-            Operations controls
+          <Link className="button button-ghost" href="/operations">
+            Open operations
           </Link>
         </div>
       </section>

@@ -27,7 +27,7 @@ export default async function SignIn({
         <dl>
           <div>
             <dt>Environment</dt>
-            <dd>Persistent staging</dd>
+            <dd>Staging environment</dd>
           </div>
           <div>
             <dt>Access</dt>

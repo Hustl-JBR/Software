@@ -1,5 +1,11 @@
 # Implementation history
 
+## 2026-08-02: Claude-report recovery and employee-operations simplification
+
+Claude's reported branch, commits, bundle, and patch were unavailable after local, attachment, object, branch, and fetched-remote checks. A dedicated Codex branch recreated the approved behaviors without claiming exact recovery. The milestone makes explicit role rows authoritative, sanitizes operator errors and malformed identifiers, removes fabricated staging analysis, expands reviewed equipment support, annotates PostgreSQL timestamp intent, introduces normal dollar entry, blocks impossible DRAFT/physical-tracking combinations, creates `/operations`, isolates administrator tools, moves actions to their records, translates activity language, and raises employee UI readability. New migrations are narrow and contain no timestamp rewrite. Verification and deployment results are recorded separately as they complete.
+
+Commits `189b3b8`, `d5563e0`, and `6df3de8` were pushed to `codex/integrate-claude-review`; draft PR #2 targets the existing Atlas development branch. Railway staging deployment `0917b316-2370-4fa6-a57d-57d624ead488` succeeded with both forward migrations, 29 PostgreSQL integration tests, guarded seed/auth/isolation checks, persistence confirmation, and a healthy database-backed application. Local verification passed formatting, ESLint, TypeScript, build, 46 unit tests, 12 demo browser tests, and the six-width visual/console audit.
+
 1. Repository foundation established product, architecture, security, testing, and phased-roadmap documentation.
 2. The first vertical slice implemented tenant-scoped shipment intake, deterministic extraction, immutable correction revisions, exact approval, draft load/stops, and audit history.
 3. Verification hardening added CI, PostgreSQL 16 configuration, integration/E2E coverage, safe errors, seed guards, and local setup.

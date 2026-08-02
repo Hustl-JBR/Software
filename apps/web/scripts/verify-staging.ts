@@ -203,7 +203,7 @@ async function main() {
   if (!drillLoad.trackingUpdates.length)
     await addTrackingUpdate(alexId, "atlas-staging", {
       loadId,
-      status: "IN_TRANSIT",
+      status: "MANUAL_CHECK_CALL",
       location: "Greenville, SC",
       notes: "Synthetic manual staging check-in",
       occurredAt: new Date(),

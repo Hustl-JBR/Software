@@ -27,8 +27,12 @@ test("sign in, review extraction, correct, approve, and view a draft load", asyn
   await page.getByRole("button", { name: "Analyze shipment" }).click();
 
   await expect(
-    page.getByRole("heading", { name: "Review Atlas analysis" }),
+    page.getByRole("heading", { name: "Review shipment details" }),
   ).toBeVisible();
+  await expect(page.getByText(/confidence/i)).toHaveCount(0);
+  await expect(page.getByText(/capacity used/i)).toHaveCount(0);
+  await expect(page.getByText("Estimated transit")).toBeVisible();
+  await expect(page.getByText("Not calculated")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Information needed" }),
   ).toBeVisible();
@@ -49,6 +53,7 @@ test("sign in, review extraction, correct, approve, and view a draft load", asyn
   await page.locator('input[name="destinationCity"]').fill("Dallas");
   await page.locator('input[name="destinationState"]').fill("TX");
   await page.locator('input[name="destinationPostalCode"]').fill("75201");
+  await page.locator('select[name="equipmentType"]').selectOption("DRY_VAN");
   await page.getByRole("button", { name: "Save as new revision" }).click();
 
   await expect(page.getByText("Revision 2 saved")).toBeVisible();
@@ -58,7 +63,7 @@ test("sign in, review extraction, correct, approve, and view a draft load", asyn
     .getByRole("button", { name: /Approve & create draft load/ })
     .click();
 
-  await expect(page.getByText("Persistent load operations")).toBeVisible();
+  await expect(page.getByText("Load operations")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Stops · 2" })).toBeVisible();
   await expect(page.getByText("E2E Chicago Plant")).toBeVisible();
   await expect(page.getByText("E2E Dallas DC")).toBeVisible();

@@ -76,11 +76,7 @@ export default async function LoadsPage({
             : "Sourcing"
       : !selectedCarrier
         ? "Sourcing"
-        : !load.driverAssignment
-          ? "Dispatch pending"
-          : latestTracking
-            ? "In transit"
-            : "Dispatch pending";
+        : "Dispatch pending";
     return {
       id: request.id,
       number: load?.loadNumber ?? `REQ-${request.id.slice(0, 8).toUpperCase()}`,
@@ -103,7 +99,9 @@ export default async function LoadsPage({
         load?.status.replaceAll("_", " ") ??
         request.status.replaceAll("_", " "),
       health: missing > 0 ? "At risk" : attention ? "Watch" : "Healthy",
-      tracking: latestTracking?.status ?? "Manual tracking not started",
+      tracking: latestTracking
+        ? latestTracking.status.replaceAll("_", " ").toLowerCase()
+        : "Manual tracking not started",
       trackingFreshness: relativeTime(latestTracking?.occurredAt),
       revenueCents: latestQuote ? Number(latestQuote.amountCents) : undefined,
       carrierCostCents: selectedCarrier?.quotedCostCents

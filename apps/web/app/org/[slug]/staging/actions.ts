@@ -18,6 +18,8 @@ import {
   setLoadOwnership,
 } from "@atlas/db/operations";
 import { getSessionUserId } from "@/lib/session";
+import { parseUsdToCents } from "@/lib/currency";
+import { safeErrorCode, safeReturnPath } from "@/lib/safe-error";
 
 function value(form: FormData, key: string) {
   return String(form.get(key) ?? "").trim();
@@ -28,15 +30,15 @@ async function run(
   task: (userId: string, slug: string) => Promise<unknown>,
 ) {
   const slug = value(form, "organizationSlug");
+  const returnPath = safeReturnPath(slug, value(form, "returnPath"));
   const userId = await getSessionUserId();
   if (!userId) redirect("/sign-in");
   try {
     await task(userId, slug);
-    redirect(`/org/${slug}/staging?saved=1`);
+    redirect(`${returnPath}?saved=1`);
   } catch (error) {
     if (isRedirect(error)) throw error;
-    const code = error instanceof Error ? error.message : "UNKNOWN";
-    redirect(`/org/${slug}/staging?error=${encodeURIComponent(code)}`);
+    redirect(`${returnPath}?error=${safeErrorCode(error)}`);
   }
 }
 
@@ -55,7 +57,7 @@ export async function createQuote(form: FormData) {
   return run(form, (userId, slug) =>
     createQuoteCommand(userId, slug, {
       shipmentRequestId: value(form, "shipmentRequestId"),
-      amountCents: value(form, "amountCents"),
+      amountCents: parseUsdToCents(value(form, "amount")),
       assumptions: value(form, "assumptions") || undefined,
     }),
   );
@@ -90,8 +92,12 @@ export async function addCandidate(form: FormData) {
       carrierName: value(form, "carrierName"),
       authorityConfirmed: form.get("authorityConfirmed") === "on",
       insuranceConfirmed: form.get("insuranceConfirmed") === "on",
-      cargoCoverageCents: value(form, "cargoCoverageCents") || undefined,
-      quotedCostCents: value(form, "quotedCostCents") || undefined,
+      cargoCoverageCents: value(form, "cargoCoverage")
+        ? parseUsdToCents(value(form, "cargoCoverage"))
+        : undefined,
+      quotedCostCents: value(form, "quotedCost")
+        ? parseUsdToCents(value(form, "quotedCost"))
+        : undefined,
     }),
   );
 }

@@ -12,8 +12,8 @@ describe("deterministic extraction adapter", () => {
       customerName: "Acme",
       pickupDate: "2026-08-10",
       weightPounds: 38000,
-      equipmentType: "DRY_VAN",
     });
+    expect(result.candidates.equipmentType).toBeUndefined();
     expect(result.sourceReferences.customerName).toContain("Customer:");
   });
   it("does not guess and reports missing values", async () => {
@@ -22,11 +22,20 @@ describe("deterministic extraction adapter", () => {
       structured: {},
     });
     expect(result.candidates.originCity).toBeUndefined();
+    expect(result.candidates.equipmentType).toBeUndefined();
     expect(
       result.issues.some(
         (x) => x.type === "MISSING" && x.field === "originCity",
       ),
     ).toBe(true);
+  });
+
+  it("preserves explicitly supplied equipment without defaulting it", async () => {
+    const result = await adapter.extract({
+      originalText: "Customer: Acme",
+      structured: { equipmentType: "REEFER" },
+    });
+    expect(result.candidates.equipmentType).toBe("REEFER");
   });
   it("reports uncertainty and conflicting pickup dates", async () => {
     const result = await adapter.extract({

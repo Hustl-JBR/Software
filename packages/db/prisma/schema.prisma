@@ -80,280 +80,296 @@ enum CommunicationChannel {
 }
 
 model Organization {
-  id String @id @default(uuid()) @db.Uuid
-  slug String @unique
-  name String
-  memberships OrganizationMembership[]
-  membershipRoles OrganizationMembershipRole[]
-  customers Customer[]
-  customerCalls CustomerCall[]
-  shipmentRequests ShipmentRequest[]
-  revisions ShipmentRequestRevision[]
-  issues ShipmentIssue[]
-  approvals ApprovalRequest[]
-  loads Load[]
-  stops LoadStop[]
-  statusHistory LoadStatusHistory[]
-  auditEvents AuditEvent[]
+  id                 String                       @id @default(uuid()) @db.Uuid
+  slug               String                       @unique
+  name               String
+  memberships        OrganizationMembership[]
+  membershipRoles    OrganizationMembershipRole[]
+  customers          Customer[]
+  customerCalls      CustomerCall[]
+  shipmentRequests   ShipmentRequest[]
+  revisions          ShipmentRequestRevision[]
+  issues             ShipmentIssue[]
+  approvals          ApprovalRequest[]
+  loads              Load[]
+  stops              LoadStop[]
+  statusHistory      LoadStatusHistory[]
+  auditEvents        AuditEvent[]
   idempotencyRecords IdempotencyRecord[]
-  quotes Quote[]
-  carrierCandidates CarrierCandidate[]
-  driverAssignments DriverAssignment[]
-  trackingUpdates TrackingUpdate[]
-  communicationLogs CommunicationLog[]
-  tasks Task[]
-  createdAt DateTime @default(now()) @map("created_at")
+  quotes             Quote[]
+  carrierCandidates  CarrierCandidate[]
+  driverAssignments  DriverAssignment[]
+  trackingUpdates    TrackingUpdate[]
+  communicationLogs  CommunicationLog[]
+  tasks              Task[]
+  createdAt          DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+
   @@map("organizations")
 }
 
 model User {
-  id String @id @default(uuid()) @db.Uuid
-  email String @unique
-  name String
-  emailVerified Boolean @default(false)
-  image String?
-  active Boolean @default(true)
-  memberships OrganizationMembership[]
+  id              String                       @id @default(uuid()) @db.Uuid
+  email           String                       @unique
+  name            String
+  emailVerified   Boolean                      @default(false)
+  image           String?
+  active          Boolean                      @default(true)
+  memberships     OrganizationMembership[]
   membershipRoles OrganizationMembershipRole[]
-  revisions ShipmentRequestRevision[]
-  approvals ApprovalRequest[]
-  createdQuotes Quote[] @relation("QuoteCreator")
-  approvedQuotes Quote[] @relation("QuoteApprover")
-  sessions Session[]
-  accounts Account[]
-  ownedLoads Load[] @relation("LoadOwner")
-  assignedTasks Task[] @relation("TaskAssignee")
-  completedTasks Task[] @relation("TaskCompleter")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  revisions       ShipmentRequestRevision[]
+  approvals       ApprovalRequest[]
+  createdQuotes   Quote[]                      @relation("QuoteCreator")
+  approvedQuotes  Quote[]                      @relation("QuoteApprover")
+  sessions        Session[]
+  accounts        Account[]
+  ownedLoads      Load[]                       @relation("LoadOwner")
+  assignedTasks   Task[]                       @relation("TaskAssignee")
+  completedTasks  Task[]                       @relation("TaskCompleter")
+  createdAt       DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
   @@map("users")
 }
 
 model Session {
-  id String @id
-  expiresAt DateTime
-  token String @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String   @id
+  expiresAt DateTime @db.Timestamptz(6)
+  token     String   @unique
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
   ipAddress String?
   userAgent String?
-  userId String @db.Uuid
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@map("auth_sessions")
 }
 
 model Account {
-  id String @id
-  accountId String
-  providerId String
-  userId String @db.Uuid
-  accessToken String?
-  refreshToken String?
-  idToken String?
-  accessTokenExpiresAt DateTime?
-  refreshTokenExpiresAt DateTime?
-  scope String?
-  password String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String    @db.Uuid
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime? @db.Timestamptz(6)
+  refreshTokenExpiresAt DateTime? @db.Timestamptz(6)
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(6)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@map("auth_accounts")
 }
 
 model Verification {
-  id String @id
+  id         String   @id
   identifier String
-  value String
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  value      String
+  expiresAt  DateTime @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(6)
+
   @@index([identifier])
   @@map("auth_verifications")
 }
 
 model OrganizationMembership {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  userId String @db.Uuid @map("user_id")
-  role MembershipRole
-  status MembershipStatus @default(ACTIVE)
-  organization Organization @relation(fields: [organizationId], references: [id])
-  user User @relation(fields: [userId], references: [id])
-  roles OrganizationMembershipRole[]
+  id             String                       @id @default(uuid()) @db.Uuid
+  organizationId String                       @map("organization_id") @db.Uuid
+  userId         String                       @map("user_id") @db.Uuid
+  role           MembershipRole
+  status         MembershipStatus             @default(ACTIVE)
+  organization   Organization                 @relation(fields: [organizationId], references: [id])
+  user           User                         @relation(fields: [userId], references: [id])
+  roles          OrganizationMembershipRole[]
+
   @@unique([organizationId, userId])
   @@map("organization_memberships")
 }
 
 model OrganizationMembershipRole {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  membershipId String @db.Uuid @map("membership_id")
-  userId String @db.Uuid @map("user_id")
-  role MembershipRole
-  organization Organization @relation(fields: [organizationId], references: [id])
-  membership OrganizationMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now()) @map("created_at")
+  id             String                 @id @default(uuid()) @db.Uuid
+  organizationId String                 @map("organization_id") @db.Uuid
+  membershipId   String                 @map("membership_id") @db.Uuid
+  userId         String                 @map("user_id") @db.Uuid
+  role           MembershipRole
+  organization   Organization           @relation(fields: [organizationId], references: [id])
+  membership     OrganizationMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  user           User                   @relation(fields: [userId], references: [id])
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+
   @@unique([membershipId, role])
   @@index([organizationId, userId])
   @@map("organization_membership_roles")
 }
 
 model Customer {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  name String
-  organization Organization @relation(fields: [organizationId], references: [id])
-  loads Load[]
-  createdAt DateTime @default(now()) @map("created_at")
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  name           String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  loads          Load[]
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
   @@unique([organizationId, id])
   @@unique([organizationId, name])
   @@map("customers")
 }
 
 model ShipmentRequest {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  status ShipmentRequestStatus @default(NEEDS_REVIEW)
-  currentRevisionNumber Int @default(1) @map("current_revision_number")
-  organization Organization @relation(fields: [organizationId], references: [id])
-  revisions ShipmentRequestRevision[]
-  issues ShipmentIssue[]
-  approvals ApprovalRequest[]
-  load Load?
-  calls CustomerCall[]
-  quotes Quote[]
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                    String                    @id @default(uuid()) @db.Uuid
+  organizationId        String                    @map("organization_id") @db.Uuid
+  status                ShipmentRequestStatus     @default(NEEDS_REVIEW)
+  currentRevisionNumber Int                       @default(1) @map("current_revision_number")
+  organization          Organization              @relation(fields: [organizationId], references: [id])
+  revisions             ShipmentRequestRevision[]
+  issues                ShipmentIssue[]
+  approvals             ApprovalRequest[]
+  load                  Load?
+  calls                 CustomerCall[]
+  quotes                Quote[]
+  createdAt             DateTime                  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
   @@unique([organizationId, id])
   @@map("shipment_requests")
 }
 
 model CustomerCall {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  shipmentRequestId String? @db.Uuid @map("shipment_request_id")
-  customerName String @map("customer_name")
-  contactName String? @map("contact_name")
-  occurredAt DateTime @map("occurred_at")
-  notes String
-  organization Organization @relation(fields: [organizationId], references: [id])
-  shipmentRequest ShipmentRequest? @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
-  createdAt DateTime @default(now()) @map("created_at")
+  id                String           @id @default(uuid()) @db.Uuid
+  organizationId    String           @map("organization_id") @db.Uuid
+  shipmentRequestId String?          @map("shipment_request_id") @db.Uuid
+  customerName      String           @map("customer_name")
+  contactName       String?          @map("contact_name")
+  occurredAt        DateTime         @map("occurred_at") @db.Timestamptz(6)
+  notes             String
+  organization      Organization     @relation(fields: [organizationId], references: [id])
+  shipmentRequest   ShipmentRequest? @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
   @@index([organizationId, occurredAt])
   @@map("customer_calls")
 }
 
 model Quote {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  shipmentRequestId String @db.Uuid @map("shipment_request_id")
-  status QuoteStatus @default(DRAFT)
-  amountCents BigInt @map("amount_cents")
-  currency String @default("USD") @db.Char(3)
-  assumptions String?
-  createdById String @db.Uuid @map("created_by_id")
-  approvedById String? @db.Uuid @map("approved_by_id")
-  approvedAt DateTime? @map("approved_at")
-  acceptedAt DateTime? @map("accepted_at")
-  acceptanceEvidence String? @map("acceptance_evidence")
-  organization Organization @relation(fields: [organizationId], references: [id])
-  shipmentRequest ShipmentRequest @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
-  createdBy User @relation("QuoteCreator", fields: [createdById], references: [id])
-  approvedBy User? @relation("QuoteApprover", fields: [approvedById], references: [id])
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                 String          @id @default(uuid()) @db.Uuid
+  organizationId     String          @map("organization_id") @db.Uuid
+  shipmentRequestId  String          @map("shipment_request_id") @db.Uuid
+  status             QuoteStatus     @default(DRAFT)
+  amountCents        BigInt          @map("amount_cents")
+  currency           String          @default("USD") @db.Char(3)
+  assumptions        String?
+  createdById        String          @map("created_by_id") @db.Uuid
+  approvedById       String?         @map("approved_by_id") @db.Uuid
+  approvedAt         DateTime?       @map("approved_at") @db.Timestamptz(6)
+  acceptedAt         DateTime?       @map("accepted_at") @db.Timestamptz(6)
+  acceptanceEvidence String?         @map("acceptance_evidence")
+  organization       Organization    @relation(fields: [organizationId], references: [id])
+  shipmentRequest    ShipmentRequest @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
+  createdBy          User            @relation("QuoteCreator", fields: [createdById], references: [id])
+  approvedBy         User?           @relation("QuoteApprover", fields: [approvedById], references: [id])
+  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
   @@unique([organizationId, id])
   @@index([organizationId, shipmentRequestId])
   @@map("quotes")
 }
 
 model ShipmentRequestRevision {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  shipmentRequestId String @db.Uuid @map("shipment_request_id")
-  revisionNumber Int @map("revision_number")
-  originalText String @map("original_text")
-  structuredData Json @map("structured_data")
-  extractionMetadata Json @map("extraction_metadata")
-  validationResults Json @map("validation_results")
-  createdById String @db.Uuid @map("created_by_id")
-  organization Organization @relation(fields: [organizationId], references: [id])
-  shipmentRequest ShipmentRequest @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
-  createdBy User @relation(fields: [createdById], references: [id])
-  issues ShipmentIssue[]
-  approval ApprovalRequest?
-  load Load?
-  createdAt DateTime @default(now()) @map("created_at")
+  id                 String           @id @default(uuid()) @db.Uuid
+  organizationId     String           @map("organization_id") @db.Uuid
+  shipmentRequestId  String           @map("shipment_request_id") @db.Uuid
+  revisionNumber     Int              @map("revision_number")
+  originalText       String           @map("original_text")
+  structuredData     Json             @map("structured_data")
+  extractionMetadata Json             @map("extraction_metadata")
+  validationResults  Json             @map("validation_results")
+  createdById        String           @map("created_by_id") @db.Uuid
+  organization       Organization     @relation(fields: [organizationId], references: [id])
+  shipmentRequest    ShipmentRequest  @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
+  createdBy          User             @relation(fields: [createdById], references: [id])
+  issues             ShipmentIssue[]
+  approval           ApprovalRequest?
+  load               Load?
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
   @@unique([organizationId, id])
   @@unique([shipmentRequestId, revisionNumber])
   @@map("shipment_request_revisions")
 }
 
 model ShipmentIssue {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  shipmentRequestId String @db.Uuid @map("shipment_request_id")
-  revisionId String @db.Uuid @map("revision_id")
-  type IssueType
-  field String
-  message String
-  sourceReference String? @map("source_reference")
-  organization Organization @relation(fields: [organizationId], references: [id])
-  shipmentRequest ShipmentRequest @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
-  revision ShipmentRequestRevision @relation(fields: [organizationId, revisionId], references: [organizationId, id])
-  createdAt DateTime @default(now()) @map("created_at")
+  id                String                  @id @default(uuid()) @db.Uuid
+  organizationId    String                  @map("organization_id") @db.Uuid
+  shipmentRequestId String                  @map("shipment_request_id") @db.Uuid
+  revisionId        String                  @map("revision_id") @db.Uuid
+  type              IssueType
+  field             String
+  message           String
+  sourceReference   String?                 @map("source_reference")
+  organization      Organization            @relation(fields: [organizationId], references: [id])
+  shipmentRequest   ShipmentRequest         @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
+  revision          ShipmentRequestRevision @relation(fields: [organizationId, revisionId], references: [organizationId, id])
+  createdAt         DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+
   @@map("shipment_issues")
 }
 
 model ApprovalRequest {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  shipmentRequestId String @db.Uuid @map("shipment_request_id")
-  revisionId String @unique @db.Uuid @map("revision_id")
-  approvedById String @db.Uuid @map("approved_by_id")
-  status ApprovalStatus @default(ACCEPTED)
-  decisionReason String? @map("decision_reason")
-  organization Organization @relation(fields: [organizationId], references: [id])
-  shipmentRequest ShipmentRequest @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
-  revision ShipmentRequestRevision @relation(fields: [organizationId, revisionId], references: [organizationId, id])
-  approvedBy User @relation(fields: [approvedById], references: [id])
-  createdAt DateTime @default(now()) @map("created_at")
+  id                String                  @id @default(uuid()) @db.Uuid
+  organizationId    String                  @map("organization_id") @db.Uuid
+  shipmentRequestId String                  @map("shipment_request_id") @db.Uuid
+  revisionId        String                  @unique @map("revision_id") @db.Uuid
+  approvedById      String                  @map("approved_by_id") @db.Uuid
+  status            ApprovalStatus          @default(ACCEPTED)
+  decisionReason    String?                 @map("decision_reason")
+  organization      Organization            @relation(fields: [organizationId], references: [id])
+  shipmentRequest   ShipmentRequest         @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
+  revision          ShipmentRequestRevision @relation(fields: [organizationId, revisionId], references: [organizationId, id])
+  approvedBy        User                    @relation(fields: [approvedById], references: [id])
+  createdAt         DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+
   @@unique([organizationId, id])
   @@unique([organizationId, revisionId])
   @@map("approval_requests")
 }
 
 model Load {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  shipmentRequestId String @unique @db.Uuid @map("shipment_request_id")
-  approvedRevisionId String @unique @db.Uuid @map("approved_revision_id")
-  customerId String @db.Uuid @map("customer_id")
-  loadNumber String @map("load_number")
-  status LoadStatus @default(DRAFT)
-  primaryOwnerId String? @db.Uuid @map("primary_owner_id")
-  nextAction String? @map("next_action")
-  commodity String
-  weightPounds Int @map("weight_pounds")
-  equipmentType String @map("equipment_type")
-  pickupDate DateTime @db.Date @map("pickup_date")
-  deliveryDate DateTime @db.Date @map("delivery_date")
-  organization Organization @relation(fields: [organizationId], references: [id])
-  shipmentRequest ShipmentRequest @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
-  approvedRevision ShipmentRequestRevision @relation(fields: [organizationId, approvedRevisionId], references: [organizationId, id])
-  customer Customer @relation(fields: [organizationId, customerId], references: [organizationId, id])
-  primaryOwner User? @relation("LoadOwner", fields: [primaryOwnerId], references: [id])
-  stops LoadStop[]
-  statusHistory LoadStatusHistory[]
-  carrierCandidates CarrierCandidate[]
-  driverAssignment DriverAssignment?
-  trackingUpdates TrackingUpdate[]
-  communications CommunicationLog[]
-  tasks Task[]
-  createdAt DateTime @default(now()) @map("created_at")
+  id                 String                  @id @default(uuid()) @db.Uuid
+  organizationId     String                  @map("organization_id") @db.Uuid
+  shipmentRequestId  String                  @unique @map("shipment_request_id") @db.Uuid
+  approvedRevisionId String                  @unique @map("approved_revision_id") @db.Uuid
+  customerId         String                  @map("customer_id") @db.Uuid
+  loadNumber         String                  @map("load_number")
+  status             LoadStatus              @default(DRAFT)
+  primaryOwnerId     String?                 @map("primary_owner_id") @db.Uuid
+  nextAction         String?                 @map("next_action")
+  commodity          String
+  weightPounds       Int                     @map("weight_pounds")
+  equipmentType      String                  @map("equipment_type")
+  equipmentDetail    String?                 @map("equipment_detail")
+  pickupDate         DateTime                @map("pickup_date") @db.Date
+  deliveryDate       DateTime                @map("delivery_date") @db.Date
+  organization       Organization            @relation(fields: [organizationId], references: [id])
+  shipmentRequest    ShipmentRequest         @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
+  approvedRevision   ShipmentRequestRevision @relation(fields: [organizationId, approvedRevisionId], references: [organizationId, id])
+  customer           Customer                @relation(fields: [organizationId, customerId], references: [organizationId, id])
+  primaryOwner       User?                   @relation("LoadOwner", fields: [primaryOwnerId], references: [id])
+  stops              LoadStop[]
+  statusHistory      LoadStatusHistory[]
+  carrierCandidates  CarrierCandidate[]
+  driverAssignment   DriverAssignment?
+  trackingUpdates    TrackingUpdate[]
+  communications     CommunicationLog[]
+  tasks              Task[]
+  createdAt          DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+
   @@unique([organizationId, id])
   @@unique([organizationId, shipmentRequestId])
   @@unique([organizationId, approvedRevisionId])
@@ -362,164 +378,173 @@ model Load {
 }
 
 model LoadStop {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  loadId String @db.Uuid @map("load_id")
-  sequence Int
-  type StopType
-  facilityName String @map("facility_name")
-  city String
-  state String
-  postalCode String @map("postal_code")
-  appointmentStart DateTime? @map("appointment_start")
-  appointmentEnd DateTime? @map("appointment_end")
-  instructions String?
-  appointmentConfirmedAt DateTime? @map("appointment_confirmed_at")
-  organization Organization @relation(fields: [organizationId], references: [id])
-  load Load @relation(fields: [organizationId, loadId], references: [organizationId, id])
-  createdAt DateTime @default(now()) @map("created_at")
+  id                     String       @id @default(uuid()) @db.Uuid
+  organizationId         String       @map("organization_id") @db.Uuid
+  loadId                 String       @map("load_id") @db.Uuid
+  sequence               Int
+  type                   StopType
+  facilityName           String       @map("facility_name")
+  city                   String
+  state                  String
+  postalCode             String       @map("postal_code")
+  appointmentStart       DateTime?    @map("appointment_start") @db.Timestamptz(6)
+  appointmentEnd         DateTime?    @map("appointment_end") @db.Timestamptz(6)
+  instructions           String?
+  appointmentConfirmedAt DateTime?    @map("appointment_confirmed_at") @db.Timestamptz(6)
+  organization           Organization @relation(fields: [organizationId], references: [id])
+  load                   Load         @relation(fields: [organizationId, loadId], references: [organizationId, id])
+  createdAt              DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
   @@unique([loadId, sequence])
   @@map("load_stops")
 }
 
 model CarrierCandidate {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  loadId String @db.Uuid @map("load_id")
-  carrierName String @map("carrier_name")
-  status CarrierCandidateStatus @default(ENTERED)
-  authorityConfirmed Boolean @default(false) @map("authority_confirmed")
-  insuranceConfirmed Boolean @default(false) @map("insurance_confirmed")
-  cargoCoverageCents BigInt? @map("cargo_coverage_cents")
-  quotedCostCents BigInt? @map("quoted_cost_cents")
-  blockReason String? @map("block_reason")
-  selectedAt DateTime? @map("selected_at")
-  organization Organization @relation(fields: [organizationId], references: [id])
-  load Load @relation(fields: [organizationId, loadId], references: [organizationId, id])
-  driverAssignment DriverAssignment?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                 String                 @id @default(uuid()) @db.Uuid
+  organizationId     String                 @map("organization_id") @db.Uuid
+  loadId             String                 @map("load_id") @db.Uuid
+  carrierName        String                 @map("carrier_name")
+  status             CarrierCandidateStatus @default(ENTERED)
+  authorityConfirmed Boolean                @default(false) @map("authority_confirmed")
+  insuranceConfirmed Boolean                @default(false) @map("insurance_confirmed")
+  cargoCoverageCents BigInt?                @map("cargo_coverage_cents")
+  quotedCostCents    BigInt?                @map("quoted_cost_cents")
+  blockReason        String?                @map("block_reason")
+  selectedAt         DateTime?              @map("selected_at") @db.Timestamptz(6)
+  organization       Organization           @relation(fields: [organizationId], references: [id])
+  load               Load                   @relation(fields: [organizationId, loadId], references: [organizationId, id])
+  driverAssignment   DriverAssignment?
+  createdAt          DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime               @updatedAt @map("updated_at") @db.Timestamptz(6)
+
   @@unique([organizationId, id])
   @@index([organizationId, loadId])
   @@map("carrier_candidates")
 }
 
 model DriverAssignment {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  loadId String @unique @db.Uuid @map("load_id")
-  carrierCandidateId String @unique @db.Uuid @map("carrier_candidate_id")
-  driverName String @map("driver_name")
-  driverPhone String? @map("driver_phone")
-  dispatcherName String @map("dispatcher_name")
-  dispatcherPhone String? @map("dispatcher_phone")
-  tractorNumber String? @map("tractor_number")
-  trailerNumber String? @map("trailer_number")
-  organization Organization @relation(fields: [organizationId], references: [id])
-  load Load @relation(fields: [organizationId, loadId], references: [organizationId, id])
-  carrierCandidate CarrierCandidate @relation(fields: [organizationId, carrierCandidateId], references: [organizationId, id])
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                 String           @id @default(uuid()) @db.Uuid
+  organizationId     String           @map("organization_id") @db.Uuid
+  loadId             String           @unique @map("load_id") @db.Uuid
+  carrierCandidateId String           @unique @map("carrier_candidate_id") @db.Uuid
+  driverName         String           @map("driver_name")
+  driverPhone        String?          @map("driver_phone")
+  dispatcherName     String           @map("dispatcher_name")
+  dispatcherPhone    String?          @map("dispatcher_phone")
+  tractorNumber      String?          @map("tractor_number")
+  trailerNumber      String?          @map("trailer_number")
+  organization       Organization     @relation(fields: [organizationId], references: [id])
+  load               Load             @relation(fields: [organizationId, loadId], references: [organizationId, id])
+  carrierCandidate   CarrierCandidate @relation(fields: [organizationId, carrierCandidateId], references: [organizationId, id])
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
   @@unique([organizationId, loadId])
   @@unique([organizationId, carrierCandidateId])
   @@map("driver_assignments")
 }
 
 model TrackingUpdate {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  loadId String @db.Uuid @map("load_id")
-  status String
-  location String?
-  occurredAt DateTime @map("occurred_at")
-  notes String?
-  organization Organization @relation(fields: [organizationId], references: [id])
-  load Load @relation(fields: [organizationId, loadId], references: [organizationId, id])
-  createdAt DateTime @default(now()) @map("created_at")
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  loadId         String       @map("load_id") @db.Uuid
+  status         String
+  location       String?
+  occurredAt     DateTime     @map("occurred_at") @db.Timestamptz(6)
+  notes          String?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  load           Load         @relation(fields: [organizationId, loadId], references: [organizationId, id])
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
   @@index([organizationId, loadId, occurredAt])
   @@map("tracking_updates")
 }
 
 model CommunicationLog {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  loadId String @db.Uuid @map("load_id")
-  channel CommunicationChannel
-  partyType String @map("party_type")
-  partyName String @map("party_name")
-  direction String
-  summary String
-  occurredAt DateTime @map("occurred_at")
-  organization Organization @relation(fields: [organizationId], references: [id])
-  load Load @relation(fields: [organizationId, loadId], references: [organizationId, id])
-  createdAt DateTime @default(now()) @map("created_at")
+  id             String               @id @default(uuid()) @db.Uuid
+  organizationId String               @map("organization_id") @db.Uuid
+  loadId         String               @map("load_id") @db.Uuid
+  channel        CommunicationChannel
+  partyType      String               @map("party_type")
+  partyName      String               @map("party_name")
+  direction      String
+  summary        String
+  occurredAt     DateTime             @map("occurred_at") @db.Timestamptz(6)
+  organization   Organization         @relation(fields: [organizationId], references: [id])
+  load           Load                 @relation(fields: [organizationId, loadId], references: [organizationId, id])
+  createdAt      DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
   @@index([organizationId, loadId, occurredAt])
   @@map("communication_logs")
 }
 
 model Task {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  loadId String? @db.Uuid @map("load_id")
-  title String
-  status TaskStatus @default(OPEN)
-  dueAt DateTime? @map("due_at")
-  assigneeId String @db.Uuid @map("assignee_id")
-  completedById String? @db.Uuid @map("completed_by_id")
-  completedAt DateTime? @map("completed_at")
-  organization Organization @relation(fields: [organizationId], references: [id])
-  load Load? @relation(fields: [organizationId, loadId], references: [organizationId, id])
-  assignee User @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  completedBy User? @relation("TaskCompleter", fields: [completedById], references: [id])
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  loadId         String?      @map("load_id") @db.Uuid
+  title          String
+  status         TaskStatus   @default(OPEN)
+  dueAt          DateTime?    @map("due_at") @db.Timestamptz(6)
+  assigneeId     String       @map("assignee_id") @db.Uuid
+  completedById  String?      @map("completed_by_id") @db.Uuid
+  completedAt    DateTime?    @map("completed_at") @db.Timestamptz(6)
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  load           Load?        @relation(fields: [organizationId, loadId], references: [organizationId, id])
+  assignee       User         @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  completedBy    User?        @relation("TaskCompleter", fields: [completedById], references: [id])
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
   @@unique([organizationId, id])
   @@index([organizationId, status, dueAt])
   @@map("tasks")
 }
 
 model LoadStatusHistory {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  loadId String @db.Uuid @map("load_id")
-  toStatus LoadStatus @map("to_status")
-  actorId String @db.Uuid @map("actor_id")
-  reason String
-  organization Organization @relation(fields: [organizationId], references: [id])
-  load Load @relation(fields: [organizationId, loadId], references: [organizationId, id])
-  createdAt DateTime @default(now()) @map("created_at")
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  loadId         String       @map("load_id") @db.Uuid
+  toStatus       LoadStatus   @map("to_status")
+  actorId        String       @map("actor_id") @db.Uuid
+  reason         String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  load           Load         @relation(fields: [organizationId, loadId], references: [organizationId, id])
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
   @@map("load_status_history")
 }
 
 model AuditEvent {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  actorType ActorType @map("actor_type")
-  actorId String? @db.Uuid @map("actor_id")
-  action String
-  entityType String @map("entity_type")
-  entityId String @db.Uuid @map("entity_id")
-  beforeState Json? @map("before_state")
-  afterState Json @map("after_state")
-  metadata Json?
-  correlationId String @db.Uuid @map("correlation_id")
-  organization Organization @relation(fields: [organizationId], references: [id])
-  createdAt DateTime @default(now()) @map("created_at")
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  actorType      ActorType    @map("actor_type")
+  actorId        String?      @map("actor_id") @db.Uuid
+  action         String
+  entityType     String       @map("entity_type")
+  entityId       String       @map("entity_id") @db.Uuid
+  beforeState    Json?        @map("before_state")
+  afterState     Json         @map("after_state")
+  metadata       Json?
+  correlationId  String       @map("correlation_id") @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
   @@index([organizationId, entityType, entityId, createdAt])
   @@map("audit_events")
 }
 
 model IdempotencyRecord {
-  id String @id @default(uuid()) @db.Uuid
-  organizationId String @db.Uuid @map("organization_id")
-  command String
-  key String
-  requestHash String @map("request_hash")
-  status IdempotencyStatus @default(IN_PROGRESS)
-  resultEntityId String? @db.Uuid @map("result_entity_id")
-  organization Organization @relation(fields: [organizationId], references: [id])
-  createdAt DateTime @default(now()) @map("created_at")
-  completedAt DateTime? @map("completed_at")
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  command        String
+  key            String
+  requestHash    String            @map("request_hash")
+  status         IdempotencyStatus @default(IN_PROGRESS)
+  resultEntityId String?           @map("result_entity_id") @db.Uuid
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt    DateTime?         @map("completed_at") @db.Timestamptz(6)
+
   @@unique([organizationId, command, key])
   @@map("idempotency_records")
 }
