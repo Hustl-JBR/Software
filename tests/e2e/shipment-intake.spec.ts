@@ -15,16 +15,16 @@ test("sign in, review extraction, correct, approve, and view a draft load", asyn
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Continue securely" }).click();
   await expect(
-    page.getByRole("heading", { name: "Operations dashboard" }),
+    page.getByRole("heading", { name: "Good morning, Avery." }),
   ).toBeVisible();
 
-  await page.getByRole("link", { name: "New shipment request" }).click();
+  await page.getByRole("link", { name: "New shipment", exact: true }).click();
   await page
-    .getByLabel("Plain-English request")
+    .getByLabel("Plain-English shipment request")
     .fill(
       "Customer: E2E Foods; pickup: 2026-08-10; delivery: 2026-08-12; commodity: canned goods; weight: 38,000 lbs; maybe confirm destination",
     );
-  await page.getByRole("button", { name: "Extract and review" }).click();
+  await page.getByRole("button", { name: "Analyze shipment" }).click();
 
   await expect(
     page.getByRole("heading", { name: "Review shipment request" }),

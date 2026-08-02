@@ -14,6 +14,10 @@ test("authenticated staging shell exposes real workspace routes and honest inact
   await page.getByLabel("Email address").fill("approver@atlas.local");
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Continue securely" }).click();
+  await page.waitForURL("**/org/atlas-north");
+  await expect(
+    page.getByRole("heading", { name: "Good morning, Avery." }),
+  ).toBeVisible();
   await expect(page.getByText("STAGING", { exact: true })).toBeVisible();
   const routes = [
     ["/org/atlas-north", "Good morning, Avery."],
