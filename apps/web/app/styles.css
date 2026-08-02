@@ -5225,3 +5225,10 @@ main,
     grid-column: 1 / -1;
   }
 }
+
+.staging-attention-card:only-child,
+.attention-row:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: min(100%, 780px);
+}
