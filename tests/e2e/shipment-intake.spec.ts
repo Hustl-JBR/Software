@@ -31,7 +31,8 @@ test("sign in, review extraction, correct, approve, and view a draft load", asyn
   ).toBeVisible();
   await expect(page.getByText(/confidence/i)).toHaveCount(0);
   await expect(page.getByText(/capacity used/i)).toHaveCount(0);
-  await expect(page.getByText(/estimated transit/i)).toHaveCount(0);
+  await expect(page.getByText("Estimated transit")).toBeVisible();
+  await expect(page.getByText("Not calculated")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Information needed" }),
   ).toBeVisible();
