@@ -64,5 +64,5 @@ test("sign in, review extraction, correct, approve, and view a draft load", asyn
   await expect(page.getByText("E2E Dallas DC")).toBeVisible();
   await expect(page.getByRole("heading", { name: /Audit ·/ })).toBeVisible();
   await expect(page.getByText("DRAFT_LOAD_CREATED")).toBeVisible();
-  await expect(page.getByText("LOAD_STOPS_CREATED")).toBeVisible();
+  await expect(page.getByText("STOPS_CREATED", { exact: true })).toBeVisible();
 });
