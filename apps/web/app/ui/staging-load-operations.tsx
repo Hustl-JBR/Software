@@ -21,9 +21,13 @@ import {
   recordDriver,
   selectCarrier,
   updateOwnership,
+  calculateRoute,
+  attachStopFacility,
 } from "@/app/org/[slug]/staging/actions";
 import { randomUUID } from "node:crypto";
 import { ErrorAlert } from "./error-alert";
+import { RouteMap } from "./route-map";
+import { formatInFacilityTimeZone } from "@atlas/domain/timezone";
 
 export type StagingLoadOperationsView = {
   id: string;
@@ -38,6 +42,7 @@ export type StagingLoadOperationsView = {
   owner: string;
   nextAction: string;
   members: Array<{ id: string; name: string }>;
+  facilities: Array<{ id: string; name: string; city: string; state: string }>;
   pickup: Date;
   delivery: Date;
   stops: Array<{
@@ -52,7 +57,20 @@ export type StagingLoadOperationsView = {
     end: Date | null;
     confirmed: Date | null;
     instructions: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    timeZone: string | null;
   }>;
+  route?: {
+    distanceMeters: number;
+    durationSeconds: number;
+    encodedPolyline?: string;
+    warning: string;
+    provider: string;
+    calculatedAt: Date;
+  };
+  routeProviderAvailable: boolean;
+  mapBrowserKey?: string;
   candidates: Array<{
     id: string;
     name: string;
@@ -204,6 +222,42 @@ export function StagingLoadOperations({
               </h2>
             </div>
           </div>
+          <RouteMap
+            apiKey={load.mapBrowserKey}
+            stops={load.stops.flatMap((stop) =>
+              stop.latitude === null || stop.longitude === null
+                ? []
+                : [{ lat: stop.latitude, lng: stop.longitude }],
+            )}
+            encodedPolyline={load.route?.encodedPolyline}
+          />
+          <div className="route-disclaimer">
+            <b>General road estimate</b>
+            <span>
+              {load.route
+                ? `${Math.round(load.route.distanceMeters / 1609.344).toLocaleString()} mi · ${Math.round(load.route.durationSeconds / 3600)} hr · ${load.route.provider}`
+                : "No route estimate has been calculated."}
+            </span>
+            <small>
+              {load.route?.warning ??
+                "Not truck-legal or commercial vehicle routing. Do not use for clearance, weight, hazmat, or legal-road decisions."}
+            </small>
+          </div>
+          {load.canManageLoad && load.routeProviderAvailable && (
+            <form action={calculateRoute} className="record-action-form">
+              <HiddenFields slug={slug} loadId={load.id} />
+              <input type="hidden" name="idempotencyKey" value={randomUUID()} />
+              <button className="button button-secondary">
+                Calculate general road estimate
+              </button>
+            </form>
+          )}
+          {!load.routeProviderAvailable && (
+            <InactiveState
+              title="Route provider not configured"
+              body="Facility and stop workflows remain usable. Add approved server credentials to enable estimates."
+            />
+          )}
           <div className="route-vitals">
             <span>
               <small>Pickup</small>
@@ -343,11 +397,34 @@ export function StagingLoadOperations({
                 </p>
                 <small>
                   {stop.start
-                    ? `${shortDate(stop.start)}${stop.end ? ` – ${shortDate(stop.end)}` : ""}`
+                    ? `${stop.timeZone ? formatInFacilityTimeZone(stop.start, stop.timeZone) : shortDate(stop.start)}${stop.end ? ` – ${stop.timeZone ? formatInFacilityTimeZone(stop.end, stop.timeZone) : shortDate(stop.end)}` : ""}`
                     : "Appointment not scheduled"}{" "}
                   · {stop.confirmed ? "Confirmed" : "Not confirmed"}
                 </small>
                 {stop.instructions && <p>{stop.instructions}</p>}
+                {load.canManageLoad && load.facilities.length > 0 && (
+                  <form
+                    action={attachStopFacility}
+                    className="record-action-form"
+                  >
+                    <HiddenFields slug={slug} loadId={load.id} />
+                    <input type="hidden" name="stopId" value={stop.id} />
+                    <label>
+                      Reusable facility
+                      <select name="facilityId" defaultValue="" required>
+                        <option value="">Select facility</option>
+                        {load.facilities.map((facility) => (
+                          <option value={facility.id} key={facility.id}>
+                            {facility.name} — {facility.city}, {facility.state}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button className="button button-ghost">
+                      Use facility snapshot
+                    </button>
+                  </form>
+                )}
                 {!stop.confirmed && load.canManageLoad && (
                   <form action={confirmStop}>
                     <HiddenFields slug={slug} loadId={load.id} />

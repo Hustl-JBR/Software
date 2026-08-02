@@ -9,6 +9,12 @@ const safeCodes = new Map<string, string>([
   ["IDEMPOTENCY_KEY_REUSED", "idempotency"],
   ["INVALID_IDEMPOTENCY_KEY", "idempotency"],
   ["APPROVAL_IN_PROGRESS", "idempotency"],
+  ["ROUTE_CALCULATION_IN_PROGRESS", "idempotency"],
+  ["ROUTING_PROVIDER_UNAVAILABLE", "provider-unavailable"],
+  ["LOCATION_PROVIDER_UNAVAILABLE", "provider-unavailable"],
+  ["ROUTE_STOP_COORDINATES_REQUIRED", "coordinates-required"],
+  ["NONEXISTENT_LOCAL_TIME", "invalid-local-time"],
+  ["AMBIGUOUS_LOCAL_TIME", "ambiguous-local-time"],
   ["SEPARATION_OF_DUTIES", "separation-of-duties"],
   ["INVALID_STATE", "invalid-state"],
   ["STATUS_CONFLICT", "status-conflict"],
@@ -30,6 +36,7 @@ export function safeErrorCode(error: unknown): string {
 export function safeReturnPath(slug: string, requested: string): string {
   if (requested === "/internal/staging-tools") return requested;
   if (requested === "/operations") return requested;
+  if (requested === `/org/${slug}/network`) return requested;
   const loadPath = new RegExp(
     `^/org/${escapeRegExp(slug)}/loads/[0-9a-f-]+$`,
     "i",

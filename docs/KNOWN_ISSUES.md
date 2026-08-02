@@ -1,5 +1,9 @@
 # Known issues
 
+- Google credentials are intentionally not configured. Provider autocomplete, place resolution, route calculation, and live maps remain disabled until restricted browser/server keys and billing/quota controls are owner-approved.
+- Manual facilities may omit coordinates. They remain usable for shipment and appointment workflows, but a route estimate requires coordinates for every stop.
+- Current Google routing is a general passenger-road estimate, never truck-legal/commercial routing.
+
 - Active demo operations are browser-session state and are not durable or multi-user.
 - Synthetic contacts and compliance evidence are design fixtures, not verified official records.
 - Some demo buttons intentionally log or draft locally; they never send messages, call people, upload documents, select production carriers, or transfer money.

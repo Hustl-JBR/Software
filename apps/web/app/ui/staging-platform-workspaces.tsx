@@ -6,10 +6,17 @@ import {
   StatusBadge,
   WorkspaceHeading,
 } from "./atlas-primitives";
+import {
+  archiveFacility,
+  createFacility,
+  updateFacility,
+} from "@/app/org/[slug]/staging/actions";
 import type {
   NetworkCarrierView,
   TrackingLoadView,
 } from "@/lib/atlas-view-models";
+import { humanizeCode } from "@/lib/activity-language";
+import { FacilityLocationSearch } from "./facility-location-search";
 
 export function StagingTrackingWorkspace({
   slug,
@@ -100,11 +107,14 @@ export function StagingTrackingWorkspace({
 }
 
 export function StagingNetworkWorkspace({
+  slug,
   carriers,
   drivers,
   customers,
   facilities,
+  locationSearchAvailable,
 }: {
+  slug: string;
   carriers: NetworkCarrierView[];
   drivers: Array<{
     name: string;
@@ -113,7 +123,26 @@ export function StagingNetworkWorkspace({
     dispatcher: string;
   }>;
   customers: Array<{ name: string; loads: number }>;
-  facilities: Array<{ name: string; location: string; visits: number }>;
+  facilities: Array<{
+    id: string;
+    name: string;
+    location: string;
+    visits: number;
+    status: string;
+    timeZone: string;
+    validationStatus: string;
+    manuallyEntered: boolean;
+    addressLine1: string;
+    addressLine2: string | null;
+    city: string;
+    state: string;
+    postalCode: string;
+    latitude: number | null;
+    longitude: number | null;
+    phone: string | null;
+    appointmentRequired: boolean;
+  }>;
+  locationSearchAvailable: boolean;
 }) {
   return (
     <>
@@ -202,16 +231,298 @@ export function StagingNetworkWorkspace({
         columns={["Customer", "Approved loads"]}
         rows={customers.map((row) => [row.name, String(row.loads)])}
       />
-      <DirectorySection
+      <section
+        className="panel network-workspace staging-directory"
         id="facilities"
-        title="Facilities"
-        columns={["Facility", "Location", "Recorded stops"]}
-        rows={facilities.map((row) => [
-          row.name,
-          row.location,
-          String(row.visits),
-        ])}
-      />
+      >
+        <div className="panel-heading">
+          <div>
+            <p className="overline">Reusable location records</p>
+            <h2>Facilities</h2>
+          </div>
+          <span>Organization-scoped · immutable stop snapshots</span>
+        </div>
+        <details className="optional-fields">
+          <summary>
+            <span>＋</span> Add facility{" "}
+            <small>Manual fallback is always available</small>
+          </summary>
+          <form
+            action={createFacility}
+            className="record-action-form optional-fields-body"
+          >
+            <input type="hidden" name="organizationSlug" value={slug} />
+            <input
+              type="hidden"
+              name="returnPath"
+              value={`/org/${slug}/network`}
+            />
+            <input type="hidden" name="countryCode" value="US" />
+            <FacilityLocationSearch
+              slug={slug}
+              enabled={locationSearchAvailable}
+            />
+            <div className="fields-grid four-col">
+              <label className="span-2">
+                Facility name
+                <input name="name" required />
+              </label>
+              <label className="span-2">
+                Street address
+                <input name="addressLine1" required />
+              </label>
+              <label className="span-2">
+                Address line 2
+                <input name="addressLine2" />
+              </label>
+              <label>
+                City
+                <input name="city" required />
+              </label>
+              <label>
+                State
+                <input name="state" maxLength={2} required />
+              </label>
+              <label>
+                ZIP code
+                <input name="postalCode" required />
+              </label>
+              <label>
+                IANA time zone
+                <input name="timeZone" placeholder="America/Chicago" required />
+              </label>
+              <label>
+                Latitude
+                <input
+                  name="latitude"
+                  type="number"
+                  min="-90"
+                  max="90"
+                  step="any"
+                />
+              </label>
+              <label>
+                Longitude
+                <input
+                  name="longitude"
+                  type="number"
+                  min="-180"
+                  max="180"
+                  step="any"
+                />
+              </label>
+              <label>
+                Phone
+                <input name="phone" />
+              </label>
+              <label>
+                Shipping hours
+                <input name="shippingHours" />
+              </label>
+              <label>
+                Receiving hours
+                <input name="receivingHours" />
+              </label>
+              <label>
+                <input type="checkbox" name="appointmentRequired" /> Appointment
+                required
+              </label>
+              <label className="span-2">
+                Appointment instructions
+                <input name="appointmentInstructions" />
+              </label>
+              <label className="span-2">
+                Internal notes
+                <input name="internalNotes" />
+              </label>
+            </div>
+            <p className="muted-copy">
+              Manual entries are marked “Manually confirmed.” Provider
+              validation is only used when configured credentials are available.
+            </p>
+            <button className="button button-primary">Save facility</button>
+          </form>
+        </details>
+        {facilities.length === 0 ? (
+          <EmptyState
+            title="No reusable facilities yet"
+            body="Create a facility here, or continue entering a one-off address on shipment intake."
+          />
+        ) : (
+          <div className="directory-grid">
+            {facilities.map((facility) => (
+              <article className="directory-card" key={facility.id}>
+                <div>
+                  <h3>{facility.name}</h3>
+                  <StatusBadge
+                    label={facility.status}
+                    tone={facility.status === "ACTIVE" ? "green" : "slate"}
+                  />
+                </div>
+                <p>{facility.location}</p>
+                <dl>
+                  <div>
+                    <dt>Time zone</dt>
+                    <dd>{facility.timeZone}</dd>
+                  </div>
+                  <div>
+                    <dt>Address</dt>
+                    <dd>{humanizeCode(facility.validationStatus)}</dd>
+                  </div>
+                  <div>
+                    <dt>Recorded stops</dt>
+                    <dd>{facility.visits}</dd>
+                  </div>
+                </dl>
+                {facility.status === "ACTIVE" && (
+                  <>
+                    <details className="optional-fields">
+                      <summary>Edit facility</summary>
+                      <form
+                        action={updateFacility}
+                        className="record-action-form optional-fields-body"
+                      >
+                        <input
+                          type="hidden"
+                          name="organizationSlug"
+                          value={slug}
+                        />
+                        <input
+                          type="hidden"
+                          name="returnPath"
+                          value={`/org/${slug}/network`}
+                        />
+                        <input
+                          type="hidden"
+                          name="facilityId"
+                          value={facility.id}
+                        />
+                        <input type="hidden" name="countryCode" value="US" />
+                        <div className="fields-grid two-col">
+                          <label>
+                            Name
+                            <input
+                              name="name"
+                              defaultValue={facility.name}
+                              required
+                            />
+                          </label>
+                          <label>
+                            Street address
+                            <input
+                              name="addressLine1"
+                              defaultValue={facility.addressLine1}
+                              required
+                            />
+                          </label>
+                          <label>
+                            Address line 2
+                            <input
+                              name="addressLine2"
+                              defaultValue={facility.addressLine2 ?? ""}
+                            />
+                          </label>
+                          <label>
+                            City
+                            <input
+                              name="city"
+                              defaultValue={facility.city}
+                              required
+                            />
+                          </label>
+                          <label>
+                            State
+                            <input
+                              name="state"
+                              defaultValue={facility.state}
+                              maxLength={2}
+                              required
+                            />
+                          </label>
+                          <label>
+                            ZIP code
+                            <input
+                              name="postalCode"
+                              defaultValue={facility.postalCode}
+                              required
+                            />
+                          </label>
+                          <label>
+                            IANA time zone
+                            <input
+                              name="timeZone"
+                              defaultValue={facility.timeZone}
+                              required
+                            />
+                          </label>
+                          <label>
+                            Phone
+                            <input
+                              name="phone"
+                              defaultValue={facility.phone ?? ""}
+                            />
+                          </label>
+                          <label>
+                            Latitude
+                            <input
+                              name="latitude"
+                              type="number"
+                              step="any"
+                              defaultValue={facility.latitude ?? ""}
+                            />
+                          </label>
+                          <label>
+                            Longitude
+                            <input
+                              name="longitude"
+                              type="number"
+                              step="any"
+                              defaultValue={facility.longitude ?? ""}
+                            />
+                          </label>
+                          <label>
+                            <input
+                              type="checkbox"
+                              name="appointmentRequired"
+                              defaultChecked={facility.appointmentRequired}
+                            />{" "}
+                            Appointment required
+                          </label>
+                        </div>
+                        <small>
+                          Manual edits change the reusable record only; existing
+                          stop snapshots stay unchanged.
+                        </small>
+                        <button className="button button-secondary">
+                          Save changes
+                        </button>
+                      </form>
+                    </details>
+                    <form action={archiveFacility}>
+                      <input
+                        type="hidden"
+                        name="organizationSlug"
+                        value={slug}
+                      />
+                      <input
+                        type="hidden"
+                        name="returnPath"
+                        value={`/org/${slug}/network`}
+                      />
+                      <input
+                        type="hidden"
+                        name="facilityId"
+                        value={facility.id}
+                      />
+                      <button className="button button-ghost">Archive</button>
+                    </form>
+                  </>
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </>
   );
 }

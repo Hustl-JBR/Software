@@ -44,6 +44,29 @@ enum StopType {
   DELIVERY
 }
 
+enum FacilityStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AddressValidationStatus {
+  VALIDATED
+  NEEDS_REVIEW
+  MANUALLY_CONFIRMED
+  INCOMPLETE
+  PROVIDER_UNAVAILABLE
+}
+
+enum RouteType {
+  GENERAL_ROAD_ESTIMATE
+  COMMERCIAL_ROUTE
+}
+
+enum RouteSnapshotStatus {
+  CURRENT
+  STALE
+}
+
 enum ActorType {
   USER
   SYSTEM
@@ -93,6 +116,10 @@ model Organization {
   approvals          ApprovalRequest[]
   loads              Load[]
   stops              LoadStop[]
+  facilities         Facility[]
+  facilityContacts   FacilityContact[]
+  routeSnapshots     RouteSnapshot[]
+  providerUsage      ProviderUsageLog[]
   statusHistory      LoadStatusHistory[]
   auditEvents        AuditEvent[]
   idempotencyRecords IdempotencyRecord[]
@@ -108,25 +135,28 @@ model Organization {
 }
 
 model User {
-  id              String                       @id @default(uuid()) @db.Uuid
-  email           String                       @unique
-  name            String
-  emailVerified   Boolean                      @default(false)
-  image           String?
-  active          Boolean                      @default(true)
-  memberships     OrganizationMembership[]
-  membershipRoles OrganizationMembershipRole[]
-  revisions       ShipmentRequestRevision[]
-  approvals       ApprovalRequest[]
-  createdQuotes   Quote[]                      @relation("QuoteCreator")
-  approvedQuotes  Quote[]                      @relation("QuoteApprover")
-  sessions        Session[]
-  accounts        Account[]
-  ownedLoads      Load[]                       @relation("LoadOwner")
-  assignedTasks   Task[]                       @relation("TaskAssignee")
-  completedTasks  Task[]                       @relation("TaskCompleter")
-  createdAt       DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt       DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                String                       @id @default(uuid()) @db.Uuid
+  email             String                       @unique
+  name              String
+  emailVerified     Boolean                      @default(false)
+  image             String?
+  active            Boolean                      @default(true)
+  memberships       OrganizationMembership[]
+  membershipRoles   OrganizationMembershipRole[]
+  revisions         ShipmentRequestRevision[]
+  approvals         ApprovalRequest[]
+  createdQuotes     Quote[]                      @relation("QuoteCreator")
+  approvedQuotes    Quote[]                      @relation("QuoteApprover")
+  sessions          Session[]
+  accounts          Account[]
+  ownedLoads        Load[]                       @relation("LoadOwner")
+  assignedTasks     Task[]                       @relation("TaskAssignee")
+  completedTasks    Task[]                       @relation("TaskCompleter")
+  createdFacilities Facility[]                   @relation("FacilityCreator")
+  updatedFacilities Facility[]                   @relation("FacilityUpdater")
+  createdRoutes     RouteSnapshot[]              @relation("RouteSnapshotCreator")
+  createdAt         DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("users")
 }
@@ -362,6 +392,7 @@ model Load {
   customer           Customer                @relation(fields: [organizationId, customerId], references: [organizationId, id])
   primaryOwner       User?                   @relation("LoadOwner", fields: [primaryOwnerId], references: [id])
   stops              LoadStop[]
+  routeSnapshots     RouteSnapshot[]
   statusHistory      LoadStatusHistory[]
   carrierCandidates  CarrierCandidate[]
   driverAssignment   DriverAssignment?
@@ -378,25 +409,148 @@ model Load {
 }
 
 model LoadStop {
-  id                     String       @id @default(uuid()) @db.Uuid
-  organizationId         String       @map("organization_id") @db.Uuid
-  loadId                 String       @map("load_id") @db.Uuid
+  id                     String                  @id @default(uuid()) @db.Uuid
+  organizationId         String                  @map("organization_id") @db.Uuid
+  loadId                 String                  @map("load_id") @db.Uuid
   sequence               Int
   type                   StopType
-  facilityName           String       @map("facility_name")
+  facilityId             String?                 @map("facility_id") @db.Uuid
+  facilityName           String                  @map("facility_name")
+  addressLine1           String?                 @map("address_line_1")
+  addressLine2           String?                 @map("address_line_2")
   city                   String
   state                  String
-  postalCode             String       @map("postal_code")
-  appointmentStart       DateTime?    @map("appointment_start") @db.Timestamptz(6)
-  appointmentEnd         DateTime?    @map("appointment_end") @db.Timestamptz(6)
+  postalCode             String                  @map("postal_code")
+  countryCode            String                  @default("US") @map("country_code")
+  formattedAddress       String?                 @map("formatted_address")
+  latitude               Decimal?                @db.Decimal(9, 6)
+  longitude              Decimal?                @db.Decimal(9, 6)
+  timeZone               String?                 @map("time_zone")
+  externalProvider       String?                 @map("external_provider")
+  externalPlaceId        String?                 @map("external_place_id")
+  validationStatus       AddressValidationStatus @default(INCOMPLETE) @map("validation_status")
+  manuallyEntered        Boolean                 @default(true) @map("manually_entered")
+  appointmentLocalStart  String?                 @map("appointment_local_start")
+  appointmentLocalEnd    String?                 @map("appointment_local_end")
+  appointmentTimeZone    String?                 @map("appointment_time_zone")
+  appointmentStart       DateTime?               @map("appointment_start") @db.Timestamptz(6)
+  appointmentEnd         DateTime?               @map("appointment_end") @db.Timestamptz(6)
   instructions           String?
-  appointmentConfirmedAt DateTime?    @map("appointment_confirmed_at") @db.Timestamptz(6)
-  organization           Organization @relation(fields: [organizationId], references: [id])
-  load                   Load         @relation(fields: [organizationId, loadId], references: [organizationId, id])
-  createdAt              DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  appointmentConfirmedAt DateTime?               @map("appointment_confirmed_at") @db.Timestamptz(6)
+  organization           Organization            @relation(fields: [organizationId], references: [id])
+  load                   Load                    @relation(fields: [organizationId, loadId], references: [organizationId, id])
+  facility               Facility?               @relation(fields: [organizationId, facilityId], references: [organizationId, id])
+  createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@unique([loadId, sequence])
+  @@index([organizationId, facilityId])
   @@map("load_stops")
+}
+
+model Facility {
+  id                      String                  @id @default(uuid()) @db.Uuid
+  organizationId          String                  @map("organization_id") @db.Uuid
+  name                    String
+  status                  FacilityStatus          @default(ACTIVE)
+  addressLine1            String                  @map("address_line_1")
+  addressLine2            String?                 @map("address_line_2")
+  city                    String
+  state                   String
+  postalCode              String                  @map("postal_code")
+  countryCode             String                  @default("US") @map("country_code")
+  formattedAddress        String?                 @map("formatted_address")
+  latitude                Decimal?                @db.Decimal(9, 6)
+  longitude               Decimal?                @db.Decimal(9, 6)
+  timeZone                String                  @map("time_zone")
+  externalProvider        String?                 @map("external_provider")
+  externalPlaceId         String?                 @map("external_place_id")
+  validationStatus        AddressValidationStatus @default(INCOMPLETE) @map("validation_status")
+  manuallyEntered         Boolean                 @default(true) @map("manually_entered")
+  phone                   String?
+  shippingHours           String?                 @map("shipping_hours")
+  receivingHours          String?                 @map("receiving_hours")
+  appointmentRequired     Boolean                 @default(false) @map("appointment_required")
+  appointmentInstructions String?                 @map("appointment_instructions")
+  internalNotes           String?                 @map("internal_notes")
+  createdById             String                  @map("created_by_id") @db.Uuid
+  updatedById             String                  @map("updated_by_id") @db.Uuid
+  archivedAt              DateTime?               @map("archived_at") @db.Timestamptz(6)
+  organization            Organization            @relation(fields: [organizationId], references: [id])
+  createdBy               User                    @relation("FacilityCreator", fields: [createdById], references: [id])
+  updatedBy               User                    @relation("FacilityUpdater", fields: [updatedById], references: [id])
+  contacts                FacilityContact[]
+  stops                   LoadStop[]
+  createdAt               DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime                @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, externalProvider, externalPlaceId])
+  @@index([organizationId, status, name])
+  @@map("facilities")
+}
+
+model FacilityContact {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  facilityId     String       @map("facility_id") @db.Uuid
+  name           String
+  role           String?
+  phone          String?
+  email          String?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  facility       Facility     @relation(fields: [organizationId, facilityId], references: [organizationId, id], onDelete: Cascade)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, facilityId])
+  @@map("facility_contacts")
+}
+
+model RouteSnapshot {
+  id               String              @id @default(uuid()) @db.Uuid
+  organizationId   String              @map("organization_id") @db.Uuid
+  loadId           String              @map("load_id") @db.Uuid
+  provider         String
+  providerRouteId  String?             @map("provider_route_id")
+  routeType        RouteType           @default(GENERAL_ROAD_ESTIMATE) @map("route_type")
+  status           RouteSnapshotStatus @default(CURRENT)
+  stopCoordinates  Json                @map("stop_coordinates")
+  distanceMeters   Int                 @map("distance_meters")
+  durationSeconds  Int                 @map("duration_seconds")
+  encodedPolyline  String?             @map("encoded_polyline")
+  calculatedAt     DateTime            @map("calculated_at") @db.Timestamptz(6)
+  providerVersion  String              @map("provider_version")
+  equipmentContext Json?               @map("equipment_context")
+  warning          String
+  requestHash      String              @map("request_hash")
+  createdById      String              @map("created_by_id") @db.Uuid
+  organization     Organization        @relation(fields: [organizationId], references: [id])
+  load             Load                @relation(fields: [organizationId, loadId], references: [organizationId, id])
+  createdBy        User                @relation("RouteSnapshotCreator", fields: [createdById], references: [id])
+  createdAt        DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, loadId, requestHash])
+  @@index([organizationId, loadId, status])
+  @@map("route_snapshots")
+}
+
+model ProviderUsageLog {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  provider       String
+  operation      String
+  outcome        String
+  units          Int          @default(1)
+  durationMs     Int?         @map("duration_ms")
+  cacheHit       Boolean      @default(false) @map("cache_hit")
+  actorId        String?      @map("actor_id") @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([organizationId, provider, operation, createdAt])
+  @@map("provider_usage_logs")
 }
 
 model CarrierCandidate {

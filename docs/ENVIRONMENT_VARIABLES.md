@@ -1,5 +1,14 @@
 # Environment variables
 
+## Optional maps/location/routing
+
+- `ATLAS_LOCATION_PROVIDER=google` enables the server-side Google Places adapter only when `GOOGLE_MAPS_SERVER_API_KEY` is also set.
+- `ATLAS_ROUTE_PROVIDER=google` enables the server-side Google Routes adapter only when `GOOGLE_MAPS_SERVER_API_KEY` is also set.
+- `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY` is the referrer- and API-restricted browser key for Maps JavaScript API. It is public by design and must not be reused server-side.
+- `GOOGLE_MAPS_SERVER_API_KEY` is the restricted server-only Places/Routes key. Never expose it through a `NEXT_PUBLIC_` name.
+
+All four variables may remain empty. Atlas then exposes manual facility entry, disables provider route calculation, and shows a map-unavailable state. See `GOOGLE_MAPS_SETUP.md` and `MAPS_COST_CONTROLS.md` before activation.
+
 Secret values belong in Railway variables or a local untracked `.env`; never commit or print them.
 
 | Name                              | Required in staging             | Purpose                                                                                  |

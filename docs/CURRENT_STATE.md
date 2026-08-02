@@ -1,6 +1,12 @@
 # Current state
 
-Last verified locally: 2026-08-02. Recovery branch: `codex/integrate-claude-review`, based on verified commit `e353adf`.
+Last verified locally: 2026-08-02. Active stacked branch: `codex/facilities-routing-foundation`, based exactly on frozen PR #2 head `7f09f18`.
+
+## Facilities and routing foundation in progress
+
+The stacked branch adds persistent organization-scoped facilities, provider/manual address provenance, coordinates and IANA zones, immutable stop snapshots, facility-local appointment conversion with DST gap/overlap handling, provider-neutral route snapshots, and metadata-only provider usage records. Network now contains a real facility directory; intake can select reusable facilities; a load stop can snapshot one; and load overview can display a Google map and calculate an explicitly non-truck-legal general road estimate when approved credentials exist.
+
+Google integration is fail-disabled. No Google credentials or Railway provider variables have been added. Without credentials, manual facility entry remains available and the map/route controls state that the provider is unavailable. Deterministic provider mocks are test-only.
 
 Claude's reported branch, six commits, Git bundle, and patch were not present locally, in uploaded attachments, or on the fetched GitHub remote. The current recovery is therefore a clean-room recreation of the behaviors described in the owner-approved handoff, not an exact import.
 

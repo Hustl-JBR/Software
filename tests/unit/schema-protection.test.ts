@@ -6,6 +6,10 @@ const equipmentMigration = readFileSync(
   "packages/db/prisma/migrations/20260802000100_equipment_types/migration.sql",
   "utf8",
 );
+const facilityMigration = readFileSync(
+  "packages/db/prisma/migrations/20260802000300_facilities_routing_foundation/migration.sql",
+  "utf8",
+);
 
 describe("database schema protections", () => {
   it("maps every operational instant explicitly to PostgreSQL timestamptz", () => {
@@ -25,5 +29,16 @@ describe("database schema protections", () => {
     expect(equipmentMigration).toContain("equipment_detail");
     expect(equipmentMigration).toContain("POWER_ONLY");
     expect(equipmentMigration).not.toMatch(/TIMESTAMP(?!TZ)/i);
+  });
+
+  it("enforces tenant-safe facility and route foreign keys", () => {
+    expect(facilityMigration).toContain(
+      'FOREIGN KEY ("organization_id", "facility_id")',
+    );
+    expect(facilityMigration).toContain(
+      'FOREIGN KEY ("organization_id", "load_id")',
+    );
+    expect(facilityMigration).toContain("TIMESTAMPTZ(6)");
+    expect(facilityMigration).not.toMatch(/TIMESTAMP\(6\)(?! WITH TIME ZONE)/i);
   });
 });

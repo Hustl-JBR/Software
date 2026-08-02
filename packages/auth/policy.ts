@@ -5,6 +5,9 @@ export type Permission =
   | "shipment.approve"
   | "load.read"
   | "load.update"
+  | "facility.read"
+  | "facility.manage"
+  | "route.calculate"
   | "quote.manage"
   | "quote.approve"
   | "carrier.manage"
@@ -19,6 +22,9 @@ const permissions: Record<Role, ReadonlySet<Permission>> = {
     "shipment.review",
     "load.read",
     "load.update",
+    "facility.read",
+    "facility.manage",
+    "route.calculate",
     "carrier.manage",
     "task.manage",
     "audit.read",
@@ -29,6 +35,9 @@ const permissions: Record<Role, ReadonlySet<Permission>> = {
     "shipment.approve",
     "load.read",
     "load.update",
+    "facility.read",
+    "facility.manage",
+    "route.calculate",
     "quote.manage",
     "quote.approve",
     "carrier.manage",
@@ -37,7 +46,7 @@ const permissions: Record<Role, ReadonlySet<Permission>> = {
     "membership.manage",
     "audit.read",
   ]),
-  VIEWER: new Set(["load.read", "audit.read"]),
+  VIEWER: new Set(["load.read", "facility.read", "audit.read"]),
 };
 
 export function authorize(role: Role, permission: Permission): void {

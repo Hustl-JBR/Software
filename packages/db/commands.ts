@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { Prisma, type MembershipRole } from "@prisma/client";
+import { Prisma, type Facility, type MembershipRole } from "@prisma/client";
 import { prisma } from "./client";
 import { authorizeAny, type Permission, type Role } from "../auth/policy";
 import { effectiveRoles } from "../auth/membership";
@@ -10,6 +10,10 @@ import {
   type ShipmentIssue,
 } from "../domain/shipment";
 import { DeterministicMockExtractionAdapter } from "../integrations/extraction";
+import {
+  localDateTimeToInstant,
+  type LocalTimeDisambiguation,
+} from "../domain/timezone";
 
 export type ActorContext = {
   userId: string;
@@ -283,6 +287,24 @@ export async function approveRevision(
           `INVALID_REVISION:${validation.issues.map((issue) => issue.message).join("; ")}`,
         );
       const data = validation.data;
+      const facilityIds = [
+        data.originFacilityId,
+        data.destinationFacilityId,
+      ].filter((value): value is string => Boolean(value));
+      const facilities = facilityIds.length
+        ? await tx.facility.findMany({
+            where: {
+              organizationId: context.organizationId,
+              id: { in: facilityIds },
+              status: "ACTIVE",
+            },
+          })
+        : [];
+      if (facilities.length !== new Set(facilityIds).size)
+        throw new Error("FACILITY_NOT_FOUND");
+      const facilityMap = new Map(
+        facilities.map((facility) => [facility.id, facility]),
+      );
       const existingLoad = await tx.load.findUnique({
         where: { shipmentRequestId: revision.shipmentRequestId },
       });
@@ -328,7 +350,7 @@ export async function approveRevision(
         },
       });
       const stops = await tx.loadStop.createMany({
-        data: stopData(context.organizationId, load.id, data),
+        data: stopData(context.organizationId, load.id, data, facilityMap),
       });
       await tx.loadStatusHistory.create({
         data: {
@@ -418,20 +440,61 @@ function stopData(
   organizationId: string,
   loadId: string,
   data: ShipmentCandidate,
+  facilities: Map<string, Facility>,
 ) {
-  const instant = (value?: string) => (value ? new Date(value) : undefined);
+  const origin = data.originFacilityId
+    ? facilities.get(data.originFacilityId)
+    : undefined;
+  const destination = data.destinationFacilityId
+    ? facilities.get(data.destinationFacilityId)
+    : undefined;
+  const pickupZone = origin?.timeZone ?? (data.originTimeZone || undefined);
+  const deliveryZone =
+    destination?.timeZone ?? (data.destinationTimeZone || undefined);
+  const pickupStart = appointment(
+    data.pickupAppointmentStart,
+    pickupZone,
+    data.pickupAppointmentDisambiguation,
+  );
+  const pickupEnd = appointment(
+    data.pickupAppointmentEnd,
+    pickupZone,
+    data.pickupAppointmentDisambiguation,
+  );
+  const deliveryStart = appointment(
+    data.deliveryAppointmentStart,
+    deliveryZone,
+    data.deliveryAppointmentDisambiguation,
+  );
+  const deliveryEnd = appointment(
+    data.deliveryAppointmentEnd,
+    deliveryZone,
+    data.deliveryAppointmentDisambiguation,
+  );
+  if (pickupStart && pickupEnd && pickupEnd <= pickupStart)
+    throw new Error("INVALID_PICKUP_APPOINTMENT_WINDOW");
+  if (deliveryStart && deliveryEnd && deliveryEnd <= deliveryStart)
+    throw new Error("INVALID_DELIVERY_APPOINTMENT_WINDOW");
   return [
     {
       organizationId,
       loadId,
       sequence: 1,
       type: "PICKUP" as const,
-      facilityName: data.originFacilityName,
-      city: data.originCity,
-      state: data.originState,
-      postalCode: data.originPostalCode,
-      appointmentStart: instant(data.pickupAppointmentStart),
-      appointmentEnd: instant(data.pickupAppointmentEnd),
+      ...stopLocation(origin, {
+        facilityName: data.originFacilityName,
+        addressLine1: data.originAddressLine1,
+        addressLine2: data.originAddressLine2,
+        city: data.originCity,
+        state: data.originState,
+        postalCode: data.originPostalCode,
+        timeZone: pickupZone,
+      }),
+      appointmentStart: pickupStart,
+      appointmentEnd: pickupEnd,
+      appointmentLocalStart: data.pickupAppointmentStart || undefined,
+      appointmentLocalEnd: data.pickupAppointmentEnd || undefined,
+      appointmentTimeZone: pickupZone,
       instructions: data.specialInstructions || undefined,
     },
     {
@@ -439,15 +502,81 @@ function stopData(
       loadId,
       sequence: 2,
       type: "DELIVERY" as const,
-      facilityName: data.destinationFacilityName,
-      city: data.destinationCity,
-      state: data.destinationState,
-      postalCode: data.destinationPostalCode,
-      appointmentStart: instant(data.deliveryAppointmentStart),
-      appointmentEnd: instant(data.deliveryAppointmentEnd),
+      ...stopLocation(destination, {
+        facilityName: data.destinationFacilityName,
+        addressLine1: data.destinationAddressLine1,
+        addressLine2: data.destinationAddressLine2,
+        city: data.destinationCity,
+        state: data.destinationState,
+        postalCode: data.destinationPostalCode,
+        timeZone: deliveryZone,
+      }),
+      appointmentStart: deliveryStart,
+      appointmentEnd: deliveryEnd,
+      appointmentLocalStart: data.deliveryAppointmentStart || undefined,
+      appointmentLocalEnd: data.deliveryAppointmentEnd || undefined,
+      appointmentTimeZone: deliveryZone,
       instructions: data.specialInstructions || undefined,
     },
   ];
+}
+
+function appointment(
+  value: string | undefined,
+  timeZone: string | undefined,
+  disambiguation: "" | LocalTimeDisambiguation | undefined,
+) {
+  if (!value) return undefined;
+  if (/(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return new Date(value);
+  if (!timeZone) throw new Error("APPOINTMENT_TIME_ZONE_REQUIRED");
+  return localDateTimeToInstant(value, timeZone, disambiguation || "REJECT")
+    .instant;
+}
+
+function stopLocation(
+  facility: Facility | undefined,
+  manual: {
+    facilityName: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    timeZone?: string;
+  },
+) {
+  if (!facility)
+    return {
+      ...manual,
+      countryCode: "US",
+      formattedAddress: [
+        manual.addressLine1,
+        manual.addressLine2,
+        `${manual.city}, ${manual.state} ${manual.postalCode}`,
+      ]
+        .filter(Boolean)
+        .join(", "),
+      validationStatus: "MANUALLY_CONFIRMED" as const,
+      manuallyEntered: true,
+    };
+  return {
+    facilityId: facility.id,
+    facilityName: facility.name,
+    addressLine1: facility.addressLine1,
+    addressLine2: facility.addressLine2,
+    city: facility.city,
+    state: facility.state,
+    postalCode: facility.postalCode,
+    countryCode: facility.countryCode,
+    formattedAddress: facility.formattedAddress,
+    latitude: facility.latitude,
+    longitude: facility.longitude,
+    timeZone: facility.timeZone,
+    externalProvider: facility.externalProvider,
+    externalPlaceId: facility.externalPlaceId,
+    validationStatus: facility.validationStatus,
+    manuallyEntered: facility.manuallyEntered,
+  };
 }
 
 function toJson(value: unknown): Prisma.InputJsonValue {

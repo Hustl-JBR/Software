@@ -25,3 +25,12 @@ Commits `189b3b8`, `d5563e0`, and `6df3de8` were pushed to `codex/integrate-clau
 17. The legacy disposable E2E seed was updated for Better Auth credentials, while the PostgreSQL-only intake browser test is excluded from browser-only demo runs. The final demo suite passes 12 tests with that one persistent test skipped.
 
 Final verification includes formatting, lint, strict type checking, 22 unit tests, 12 demo browser tests, a demo production build, two clean Railway deployments, 25 PostgreSQL integration tests per deployment, two authenticated synthetic users, cross-organization denial, persistent data across redeployment, and a healthy public endpoint.
+
+# 2026-08-02 — Facilities and routing foundation
+
+- Created `codex/facilities-routing-foundation` from frozen PR #2 head `7f09f18`; PR #2 remains unchanged.
+- Added organization-scoped facilities and contacts, immutable load-stop location/time-zone snapshots, route snapshots, provider usage metadata, composite tenant foreign keys, and an additive migration.
+- Added manual and Google location adapters, deterministic provider mocks, authenticated/debounced/rate-limited autocomplete and resolution routes, a Network facility directory, shipment facility selection, and load-stop attachment.
+- Added DST-safe facility-local appointment conversion with explicit overlap disambiguation and gap rejection.
+- Added provider-neutral route calculation, persistent cache hashing, honest general-road warnings, Google map rendering only with a browser key, and disabled fallback without credentials.
+- Added focused domain/provider/schema tests and the facility, time-zone, provider, Google setup, cost-control, and commercial-routing documentation set.

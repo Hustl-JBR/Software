@@ -20,6 +20,14 @@ import {
 import { getSessionUserId } from "@/lib/session";
 import { parseUsdToCents } from "@/lib/currency";
 import { safeErrorCode, safeReturnPath } from "@/lib/safe-error";
+import {
+  archiveFacility as archiveFacilityCommand,
+  attachFacilityToStop,
+  calculateRouteSnapshot,
+  createFacility as createFacilityCommand,
+  updateFacility as updateFacilityCommand,
+} from "@atlas/db/facilities";
+import { locationProvider, routingProvider } from "@/lib/providers";
 
 function value(form: FormData, key: string) {
   return String(form.get(key) ?? "").trim();
@@ -184,6 +192,98 @@ export async function createTask(form: FormData) {
 export async function completeTask(form: FormData) {
   return run(form, (userId, slug) =>
     completeTaskCommand(userId, slug, value(form, "taskId")),
+  );
+}
+
+export async function createFacility(form: FormData) {
+  return run(form, (userId, slug) =>
+    createFacilityCommand(
+      userId,
+      slug,
+      {
+        name: value(form, "name"),
+        addressLine1: value(form, "addressLine1"),
+        addressLine2: value(form, "addressLine2") || undefined,
+        city: value(form, "city"),
+        state: value(form, "state"),
+        postalCode: value(form, "postalCode"),
+        countryCode: value(form, "countryCode") || "US",
+        timeZone: value(form, "timeZone"),
+        latitude: value(form, "latitude")
+          ? Number(value(form, "latitude"))
+          : undefined,
+        longitude: value(form, "longitude")
+          ? Number(value(form, "longitude"))
+          : undefined,
+        phone: value(form, "phone") || undefined,
+        shippingHours: value(form, "shippingHours") || undefined,
+        receivingHours: value(form, "receivingHours") || undefined,
+        appointmentRequired: form.get("appointmentRequired") === "on",
+        appointmentInstructions:
+          value(form, "appointmentInstructions") || undefined,
+        internalNotes: value(form, "internalNotes") || undefined,
+        externalPlaceId: value(form, "externalPlaceId") || undefined,
+        providerSessionToken: value(form, "providerSessionToken") || undefined,
+      },
+      locationProvider(),
+    ),
+  );
+}
+
+export async function archiveFacility(form: FormData) {
+  return run(form, (userId, slug) =>
+    archiveFacilityCommand(userId, slug, value(form, "facilityId")),
+  );
+}
+
+export async function updateFacility(form: FormData) {
+  return run(form, (userId, slug) =>
+    updateFacilityCommand(userId, slug, value(form, "facilityId"), {
+      name: value(form, "name"),
+      addressLine1: value(form, "addressLine1"),
+      addressLine2: value(form, "addressLine2") || undefined,
+      city: value(form, "city"),
+      state: value(form, "state"),
+      postalCode: value(form, "postalCode"),
+      countryCode: value(form, "countryCode") || "US",
+      timeZone: value(form, "timeZone"),
+      latitude: value(form, "latitude")
+        ? Number(value(form, "latitude"))
+        : undefined,
+      longitude: value(form, "longitude")
+        ? Number(value(form, "longitude"))
+        : undefined,
+      phone: value(form, "phone") || undefined,
+      shippingHours: value(form, "shippingHours") || undefined,
+      receivingHours: value(form, "receivingHours") || undefined,
+      appointmentRequired: form.get("appointmentRequired") === "on",
+      appointmentInstructions:
+        value(form, "appointmentInstructions") || undefined,
+      internalNotes: value(form, "internalNotes") || undefined,
+    }),
+  );
+}
+
+export async function attachStopFacility(form: FormData) {
+  return run(form, (userId, slug) =>
+    attachFacilityToStop(
+      userId,
+      slug,
+      value(form, "stopId"),
+      value(form, "facilityId"),
+    ),
+  );
+}
+
+export async function calculateRoute(form: FormData) {
+  return run(form, (userId, slug) =>
+    calculateRouteSnapshot(
+      userId,
+      slug,
+      value(form, "loadId"),
+      value(form, "idempotencyKey") || randomUUID(),
+      routingProvider(),
+    ),
   );
 }
 

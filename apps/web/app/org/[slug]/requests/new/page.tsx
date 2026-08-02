@@ -15,6 +15,16 @@ export default async function NewRequest({
 }) {
   const { slug } = await params;
   const demo = isDemoMode();
+  let facilities: Array<{
+    id: string;
+    name: string;
+    addressLine1: string;
+    addressLine2: string | null;
+    city: string;
+    state: string;
+    postalCode: string;
+    timeZone: string;
+  }> = [];
   if (demo) {
     if (slug !== DEMO_ORGANIZATION.slug) notFound();
   } else {
@@ -24,6 +34,20 @@ export default async function NewRequest({
       where: { userId, status: "ACTIVE", organization: { slug } },
     });
     if (!membership) notFound();
+    facilities = await prisma.facility.findMany({
+      where: { organizationId: membership.organizationId, status: "ACTIVE" },
+      select: {
+        id: true,
+        name: true,
+        addressLine1: true,
+        addressLine2: true,
+        city: true,
+        state: true,
+        postalCode: true,
+        timeZone: true,
+      },
+      orderBy: { name: "asc" },
+    });
   }
   return (
     <>
@@ -86,7 +110,7 @@ export default async function NewRequest({
               </span>
               <small>Optional · Atlas will extract what it can</small>
             </summary>
-            <ShipmentForm compact />
+            <ShipmentForm compact facilities={facilities} />
           </details>
           <div className="sticky-action-bar">
             <a className="button button-ghost" href={`/org/${slug}`}>

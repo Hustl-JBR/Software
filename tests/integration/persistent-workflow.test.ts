@@ -22,6 +22,13 @@ import {
   setLoadOwnership,
 } from "../../packages/db/operations";
 import { validCandidate } from "../unit/shipment.test";
+import {
+  attachFacilityToStop,
+  calculateRouteSnapshot,
+  createFacility,
+  updateFacility,
+} from "../../packages/db/facilities";
+import { DeterministicMockRoutingProvider } from "../../packages/integrations/routing";
 
 const enabled = Boolean(process.env.DATABASE_URL);
 const db = new PrismaClient();
@@ -115,6 +122,101 @@ describe.skipIf(!enabled)("persistent four-employee staging workflow", () => {
     expect(
       (await db.quote.findUniqueOrThrow({ where: { id: quoteId } })).status,
     ).toBe("ACCEPTED");
+  });
+
+  it("keeps facilities tenant-scoped and snapshots locations/routes", async () => {
+    const pickupFacilityId = await createFacility(operatorId, slug, {
+      name: "Synthetic Nashville Facility",
+      addressLine1: "100 Commerce St",
+      city: "Nashville",
+      state: "TN",
+      postalCode: "37201",
+      countryCode: "US",
+      timeZone: "America/Chicago",
+      latitude: 36.1627,
+      longitude: -86.7816,
+    });
+    const deliveryFacilityId = await createFacility(operatorId, slug, {
+      name: "Synthetic Atlanta Facility",
+      addressLine1: "200 Peachtree St",
+      city: "Atlanta",
+      state: "GA",
+      postalCode: "30303",
+      countryCode: "US",
+      timeZone: "America/New_York",
+      latitude: 33.749,
+      longitude: -84.388,
+    });
+    const stops = await db.loadStop.findMany({
+      where: { organizationId, loadId },
+      orderBy: { sequence: "asc" },
+    });
+    await attachFacilityToStop(operatorId, slug, stops[0].id, pickupFacilityId);
+    await attachFacilityToStop(
+      operatorId,
+      slug,
+      stops[1].id,
+      deliveryFacilityId,
+    );
+    await updateFacility(operatorId, slug, pickupFacilityId, {
+      name: "Renamed Nashville Facility",
+      addressLine1: "101 Commerce St",
+      city: "Nashville",
+      state: "TN",
+      postalCode: "37201",
+      countryCode: "US",
+      timeZone: "America/Chicago",
+      latitude: 36.1627,
+      longitude: -86.7816,
+    });
+    const immutablePickup = await db.loadStop.findUniqueOrThrow({
+      where: { id: stops[0].id },
+    });
+    expect(immutablePickup.facilityName).toBe("Synthetic Nashville Facility");
+    expect(immutablePickup.addressLine1).toBe("100 Commerce St");
+    await expect(
+      attachFacilityToStop(
+        outsiderId,
+        otherSlug,
+        stops[0].id,
+        pickupFacilityId,
+      ),
+    ).rejects.toThrow("NOT_FOUND");
+    const routeId = await calculateRouteSnapshot(
+      operatorId,
+      slug,
+      loadId,
+      "facility-route",
+      new DeterministicMockRoutingProvider(),
+    );
+    expect(
+      await calculateRouteSnapshot(
+        operatorId,
+        slug,
+        loadId,
+        "facility-route",
+        new DeterministicMockRoutingProvider(),
+      ),
+    ).toBe(routeId);
+    const route = await db.routeSnapshot.findUniqueOrThrow({
+      where: { id: routeId },
+    });
+    expect(route.routeType).toBe("GENERAL_ROAD_ESTIMATE");
+    expect(route.warning).toContain("not truck-legal");
+    expect(
+      await db.auditEvent.count({
+        where: {
+          organizationId,
+          action: {
+            in: [
+              "FACILITY_CREATED",
+              "FACILITY_ATTACHED_TO_STOP",
+              "GENERAL_ROUTE_ESTIMATE_CREATED",
+            ],
+          },
+        },
+      }),
+    ).toBe(5);
   });
 
   it("blocks an unqualified carrier and selects only a qualified carrier", async () => {

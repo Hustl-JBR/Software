@@ -4,6 +4,7 @@ import { prisma } from "@atlas/db/client";
 import { isDemoMode } from "@/lib/demo-store";
 import { requireStagingWorkspace } from "@/lib/staging-workspace";
 import { relativeTime } from "@/lib/atlas-view-models";
+import { providerCapabilities } from "@/lib/providers";
 
 export default async function NetworkPage({
   params,
@@ -13,6 +14,7 @@ export default async function NetworkPage({
   const { slug } = await params;
   if (isDemoMode()) return <NetworkWorkspace />;
   const { membership } = await requireStagingWorkspace(slug);
+  const capabilities = providerCapabilities();
   const loads = await prisma.load.findMany({
     where: { organizationId: membership.organizationId },
     include: {
@@ -22,16 +24,17 @@ export default async function NetworkPage({
       driverAssignment: { include: { carrierCandidate: true } },
     },
   });
+  const storedFacilities = await prisma.facility.findMany({
+    where: { organizationId: membership.organizationId },
+    include: { _count: { select: { stops: true } } },
+    orderBy: [{ status: "asc" }, { name: "asc" }],
+  });
   const carriers = new Map<string, ReturnType<typeof carrierView>>();
   const drivers = new Map<
     string,
     { name: string; carrier: string; load: string; dispatcher: string }
   >();
   const customers = new Map<string, { name: string; loads: number }>();
-  const facilities = new Map<
-    string,
-    { name: string; location: string; visits: number }
-  >();
   for (const load of loads) {
     const customer = customers.get(load.customer.name) ?? {
       name: load.customer.name,
@@ -39,16 +42,6 @@ export default async function NetworkPage({
     };
     customer.loads += 1;
     customers.set(customer.name, customer);
-    for (const stop of load.stops) {
-      const key = `${stop.facilityName}-${stop.city}-${stop.state}`;
-      const facility = facilities.get(key) ?? {
-        name: stop.facilityName,
-        location: `${stop.city}, ${stop.state}`,
-        visits: 0,
-      };
-      facility.visits += 1;
-      facilities.set(key, facility);
-    }
     for (const candidate of load.carrierCandidates)
       carriers.set(candidate.carrierName, carrierView(candidate, slug));
     if (load.driverAssignment)
@@ -61,10 +54,30 @@ export default async function NetworkPage({
   }
   return (
     <StagingNetworkWorkspace
+      slug={slug}
+      locationSearchAvailable={capabilities.location.available}
       carriers={[...carriers.values()]}
       drivers={[...drivers.values()]}
       customers={[...customers.values()]}
-      facilities={[...facilities.values()]}
+      facilities={storedFacilities.map((facility) => ({
+        id: facility.id,
+        name: facility.name,
+        location: `${facility.city}, ${facility.state} ${facility.postalCode}`,
+        visits: facility._count.stops,
+        status: facility.status,
+        timeZone: facility.timeZone,
+        validationStatus: facility.validationStatus,
+        manuallyEntered: facility.manuallyEntered,
+        addressLine1: facility.addressLine1,
+        addressLine2: facility.addressLine2,
+        city: facility.city,
+        state: facility.state,
+        postalCode: facility.postalCode,
+        latitude: facility.latitude?.toNumber() ?? null,
+        longitude: facility.longitude?.toNumber() ?? null,
+        phone: facility.phone,
+        appointmentRequired: facility.appointmentRequired,
+      }))}
     />
   );
 }
