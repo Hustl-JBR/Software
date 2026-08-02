@@ -18,7 +18,7 @@ test("authenticated staging shell exposes real workspace routes and honest inact
   await expect(
     page.getByRole("heading", { name: "Good morning, Avery." }),
   ).toBeVisible();
-  await expect(page.getByText("STAGING", { exact: true })).toBeVisible();
+  await expect(page.getByText("STAGING", { exact: true }).first()).toBeVisible();
   const routes = [
     ["/org/atlas-north", "Good morning, Avery."],
     ["/org/atlas-north/loads", "Loads"],

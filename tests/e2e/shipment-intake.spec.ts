@@ -18,7 +18,7 @@ test("sign in, review extraction, correct, approve, and view a draft load", asyn
     page.getByRole("heading", { name: "Good morning, Avery." }),
   ).toBeVisible();
 
-  await page.getByRole("link", { name: "New shipment", exact: true }).click();
+  await page.getByRole("link", { name: /New shipment/ }).click();
   await page
     .getByLabel("Plain-English shipment request")
     .fill(
