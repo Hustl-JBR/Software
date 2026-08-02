@@ -53,6 +53,7 @@ test("sign in, review extraction, correct, approve, and view a draft load", asyn
   await page.locator('input[name="destinationCity"]').fill("Dallas");
   await page.locator('input[name="destinationState"]').fill("TX");
   await page.locator('input[name="destinationPostalCode"]').fill("75201");
+  await page.locator('select[name="equipmentType"]').selectOption("DRY_VAN");
   await page.getByRole("button", { name: "Save as new revision" }).click();
 
   await expect(page.getByText("Revision 2 saved")).toBeVisible();
