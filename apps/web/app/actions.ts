@@ -2,7 +2,6 @@
 import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { ZodError } from "zod";
 import { prisma } from "@atlas/db/client";
 import {
   approveRevision,
@@ -19,6 +18,7 @@ import {
   DEMO_USER,
   isDemoMode,
 } from "@/lib/demo-store";
+import { safeErrorCode } from "@/lib/safe-error";
 
 function value(form: FormData, key: string) {
   return String(form.get(key) ?? "").trim();
@@ -40,6 +40,7 @@ function candidate(form: FormData) {
     "commodity",
     "weightPounds",
     "equipmentType",
+    "equipmentDetail",
     "pickupAppointmentStart",
     "pickupAppointmentEnd",
     "deliveryAppointmentStart",
@@ -170,28 +171,7 @@ export async function approve(form: FormData) {
 function redirectWithSafeError(path: string, error: unknown): never {
   // Next.js redirects are represented internally as thrown errors. Preserve them.
   if (isNextRedirect(error)) throw error;
-  const message = error instanceof Error ? error.message : "";
-  const code =
-    error instanceof ZodError
-      ? "invalid-form"
-      : message === "FORBIDDEN"
-        ? "unauthorized"
-        : message === "NOT_FOUND"
-          ? "not-found"
-          : message === "STALE_REVISION"
-            ? "stale-revision"
-            : message === "REVISION_ALREADY_APPROVED" ||
-                message === "ALREADY_APPROVED"
-              ? "duplicate-approval"
-              : message === "IDEMPOTENCY_KEY_REUSED" ||
-                  message === "INVALID_IDEMPOTENCY_KEY" ||
-                  message === "APPROVAL_IN_PROGRESS"
-                ? "idempotency"
-                : message.startsWith("INVALID_REVISION")
-                  ? "invalid-revision"
-                  : message.includes("validation") || message.includes("parse")
-                    ? "invalid-form"
-                    : "database";
+  const code = safeErrorCode(error);
   return redirect(`${path}${path.includes("?") ? "&" : "?"}error=${code}`);
 }
 

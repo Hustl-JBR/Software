@@ -69,13 +69,26 @@ describe("shipment candidate schema", () => {
       }).success,
     ).toBe(false);
   });
-  it("rejects unsupported equipment", () =>
+  it("accepts the reviewed equipment catalog", () =>
     expect(
       shipmentCandidateSchema.safeParse({
         ...validCandidate,
         equipmentType: "REEFER",
       }).success,
-    ).toBe(false));
+    ).toBe(true));
+  it("rejects unsupported or missing equipment", () => {
+    expect(
+      shipmentCandidateSchema.safeParse({
+        ...validCandidate,
+        equipmentType: "SPACE_SHUTTLE",
+      }).success,
+    ).toBe(false);
+    const { equipmentType: _equipmentType, ...withoutEquipment } =
+      validCandidate;
+    expect(shipmentCandidateSchema.safeParse(withoutEquipment).success).toBe(
+      false,
+    );
+  });
   it("requires declared value to be integer cents", () =>
     expect(
       shipmentCandidateSchema.safeParse({

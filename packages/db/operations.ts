@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { Prisma, type MembershipRole } from "@prisma/client";
 import { z } from "zod";
 import { authorizeAny, type Permission, type Role } from "../auth/policy";
+import { compatibilityRole, effectiveRoles } from "../auth/membership";
 import { prisma } from "./client";
 
 type Context = {
@@ -13,6 +14,15 @@ type Context = {
 const id = z.string().uuid();
 const required = z.string().trim().min(1).max(2_000);
 const optional = z.string().trim().max(2_000).optional();
+export const trackingStatusSchema = z.enum([
+  "MANUAL_CHECK_CALL",
+  "LOCATION_REPORTED",
+  "NO_UPDATE",
+  "AT_PICKUP",
+  "IN_TRANSIT",
+  "AT_DELIVERY",
+  "DELIVERED",
+]);
 const cents = z.union([z.string(), z.number().int()]).transform((value) => {
   const parsed = BigInt(value);
   if (parsed < 0n) throw new Error("INVALID_MONEY");
@@ -34,8 +44,9 @@ async function context(
     include: { roles: true },
   });
   if (!membership) throw new Error("NOT_FOUND");
-  const roles = Array.from(
-    new Set([membership.role, ...membership.roles.map((item) => item.role)]),
+  const roles = effectiveRoles(
+    membership.role,
+    membership.roles.map((item) => item.role),
   );
   authorizeAny(roles as Role[], permission);
   return { userId, organizationId: membership.organizationId, roles };
@@ -539,7 +550,7 @@ export async function addTrackingUpdate(
   const data = z
     .object({
       loadId: id,
-      status: required,
+      status: trackingStatusSchema,
       location: optional,
       notes: optional,
       occurredAt: z.coerce.date(),
@@ -547,6 +558,24 @@ export async function addTrackingUpdate(
     .parse(input);
   const actor = await context(userId, slug, "load.update");
   return prisma.$transaction(async (tx) => {
+    const load = await tx.load.findUnique({
+      where: {
+        organizationId_id: {
+          organizationId: actor.organizationId,
+          id: data.loadId,
+        },
+      },
+    });
+    if (!load) throw new Error("NOT_FOUND");
+    const physicalStatuses = new Set([
+      "AT_PICKUP",
+      "IN_TRANSIT",
+      "AT_DELIVERY",
+      "DELIVERED",
+    ]);
+    if (load.status === "DRAFT" && physicalStatuses.has(data.status)) {
+      throw new Error("STATUS_CONFLICT");
+    }
     const update = await tx.trackingUpdate.create({
       data: { organizationId: actor.organizationId, ...data },
     });
@@ -680,25 +709,42 @@ export async function changeMembershipRoles(
       where: { id: data.membershipId, organizationId: actor.organizationId },
     });
     if (!membership) throw new Error("NOT_FOUND");
+    const previousRoles = effectiveRoles(
+      membership.role,
+      await tx.organizationMembershipRole
+        .findMany({ where: { membershipId: membership.id } })
+        .then((rows) => rows.map((row) => row.role)),
+    );
+    const nextRoles = Array.from(new Set(data.roles));
     await tx.organizationMembershipRole.deleteMany({
       where: { membershipId: membership.id },
     });
     await tx.organizationMembershipRole.createMany({
-      data: data.roles.map((role) => ({
+      data: nextRoles.map((role) => ({
         organizationId: actor.organizationId,
         membershipId: membership.id,
         userId: membership.userId,
         role,
       })),
     });
+    await tx.organizationMembership.update({
+      where: { id: membership.id },
+      data: { role: compatibilityRole(nextRoles) },
+    });
     await tx.auditEvent.create({
-      data: audit(
-        actor,
-        "MEMBERSHIP_ROLES_CHANGED",
-        "OrganizationMembership",
-        membership.id,
-        { roles: data.roles },
-      ),
+      data: {
+        ...audit(
+          actor,
+          "MEMBERSHIP_ROLES_CHANGED",
+          "OrganizationMembership",
+          membership.id,
+          { roles: nextRoles, compatibilityRole: compatibilityRole(nextRoles) },
+        ),
+        beforeState: {
+          roles: previousRoles,
+          compatibilityRole: membership.role,
+        },
+      },
     });
     return membership.id;
   });

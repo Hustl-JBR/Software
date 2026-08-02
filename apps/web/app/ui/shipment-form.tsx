@@ -132,12 +132,29 @@ export function ShipmentForm({
           </label>
           <label>
             Equipment
-            <select
-              name="equipmentType"
-              defaultValue={v("equipmentType") || "DRY_VAN"}
-            >
+            <select name="equipmentType" defaultValue={v("equipmentType")}>
+              <option value="">Select equipment</option>
               <option value="DRY_VAN">Dry van</option>
+              <option value="REEFER">Reefer</option>
+              <option value="FLATBED">Flatbed</option>
+              <option value="STEP_DECK">Step deck</option>
+              <option value="CONESTOGA">Conestoga</option>
+              <option value="LOWBOY">Lowboy</option>
+              <option value="RGN">RGN</option>
+              <option value="POWER_ONLY">Power only</option>
+              <option value="BOX_TRUCK">Box truck</option>
+              <option value="SPRINTER">Sprinter</option>
+              <option value="HOTSHOT">Hotshot</option>
+              <option value="TANKER">Tanker</option>
             </select>
+          </label>
+          <label>
+            Equipment detail
+            <input
+              name="equipmentDetail"
+              defaultValue={v("equipmentDetail")}
+              placeholder="Optional requirements"
+            />
           </label>
           <label>
             Dimensions

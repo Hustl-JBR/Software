@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { Prisma, type MembershipRole } from "@prisma/client";
 import { prisma } from "./client";
 import { authorizeAny, type Permission, type Role } from "../auth/policy";
+import { effectiveRoles } from "../auth/membership";
 import {
   shipmentRequestCommandSchema,
   validateCandidate,
@@ -31,8 +32,9 @@ async function requireContext(
     include: { roles: true },
   });
   if (!membership) throw new Error("NOT_FOUND");
-  const roles = Array.from(
-    new Set([membership.role, ...membership.roles.map((item) => item.role)]),
+  const roles = effectiveRoles(
+    membership.role,
+    membership.roles.map((item) => item.role),
   );
   authorizeAny(roles as Role[], permission);
   return {
@@ -320,6 +322,7 @@ export async function approveRevision(
           commodity: data.commodity,
           weightPounds: data.weightPounds,
           equipmentType: data.equipmentType,
+          equipmentDetail: data.equipmentDetail || null,
           pickupDate: new Date(`${data.pickupDate}T00:00:00.000Z`),
           deliveryDate: new Date(`${data.deliveryDate}T00:00:00.000Z`),
         },
