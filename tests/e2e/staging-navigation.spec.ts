@@ -18,7 +18,7 @@ test("authenticated staging shell exposes real workspace routes and honest inact
   await expect(
     page.getByRole("heading", { name: "Good morning, Avery." }),
   ).toBeVisible();
-  await expect(page.locator(".demo-label:visible")).toHaveText(
+  await expect(page.locator(".app-shell > .sidebar .demo-label")).toHaveText(
     "STAGING · POSTGRESQL",
   );
   const routes = [
@@ -36,7 +36,7 @@ test("authenticated staging shell exposes real workspace routes and honest inact
     await expect(
       page.getByRole("heading", { name: heading, exact: true }),
     ).toBeVisible();
-    await expect(page.locator(".demo-label:visible")).toHaveText(
+    await expect(page.locator(".app-shell > .sidebar .demo-label")).toHaveText(
       "STAGING · POSTGRESQL",
     );
   }

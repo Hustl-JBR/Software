@@ -18,7 +18,9 @@ const routes = [
 test.describe("demo workspace navigation", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/org/atlas-north");
-    await expect(page.locator(".demo-label:visible")).toHaveText("DEMO");
+    await expect(page.locator(".app-shell > .sidebar .demo-label")).toHaveText(
+      "DEMO",
+    );
   });
 
   for (const [label, path, heading] of routes) {

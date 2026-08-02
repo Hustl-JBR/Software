@@ -118,17 +118,20 @@ test("all major staging routes remain usable across the approved viewport matrix
     for (const route of routes) {
       await page.goto(route.path);
       await expect(page.locator("main")).toBeVisible();
-      await expect(page.locator(".demo-label:visible")).toHaveText(
-        "STAGING · POSTGRESQL",
-      );
       await assertNoPageOverflow(page, `${viewport.width}/${route.name}`);
 
       if (viewport.width <= 1024) {
         await expect(page.locator(".app-shell > .sidebar")).toBeHidden();
         await expect(page.locator(".mobile-header")).toBeVisible();
+        await expect(page.locator(".mobile-header .demo-label")).toHaveText(
+          "STAGING · POSTGRESQL",
+        );
       } else {
         await expect(page.locator(".app-shell > .sidebar")).toBeVisible();
         await expect(page.locator(".mobile-header")).toBeHidden();
+        await expect(
+          page.locator(".app-shell > .sidebar .demo-label"),
+        ).toHaveText("STAGING · POSTGRESQL");
       }
 
       if (capture) {
