@@ -117,6 +117,7 @@ test("all major staging routes remain usable across the approved viewport matrix
     { name: "operations", path: "/operations" },
     { name: "command-center", path: "/org/atlas-north" },
     { name: "loads", path: "/org/atlas-north/loads" },
+    { name: "network-facilities", path: "/org/atlas-north/network#facilities" },
     { name: "new-shipment", path: "/org/atlas-north/requests/new" },
     { name: "shipment-review", path: reviewHref },
     { name: "load-overview", path: `${loadHref}#overview` },
@@ -143,6 +144,8 @@ test("all major staging routes remain usable across the approved viewport matrix
     await page.setViewportSize(viewport);
     for (const route of routes) {
       await page.goto(route.path, { waitUntil: "networkidle" });
+      if (route.name === "network-facilities")
+        await page.getByText("Add facility", { exact: false }).click();
       await expect(page.locator("main")).toBeVisible();
       await assertNoPageOverflow(page, `${viewport.width}/${route.name}`);
 
