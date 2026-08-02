@@ -115,7 +115,7 @@ async function main() {
       originalText: drillMarker,
       structured:
         index === 2
-          ? undefined
+          ? { customerName: "Atlas Incomplete Drill Request" }
           : {
               ...syntheticShipment,
               customerName: `Atlas Drill Customer ${index + 1}`,
