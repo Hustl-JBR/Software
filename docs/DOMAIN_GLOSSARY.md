@@ -1,0 +1,23 @@
+# Domain glossary
+
+- **Carrier**: Motor carrier or owner-operator business Atlas sources, reviews, negotiates with, and selects to move a load. Carrier selection is a commercial and compliance decision.
+- **Owner-operator**: A business operator who may be both the selected carrier and the assigned driver. The carrier record and driver assignment remain separate concepts even when one person fills both roles.
+- **Driver**: Person the selected carrier assigns to operate the tractor for a shipment-limited load. Atlas records the driver after carrier selection; Atlas is not a driver-recruiting marketplace.
+- **Dispatcher**: Carrier representative coordinating driver operations.
+- **Load**: Operational record created from an approved shipment revision.
+- **Stop**: Sequenced pickup or delivery facility visit.
+- **Tender**: Offer of a load to a carrier.
+- **Carrier sourcing**: Identifying carrier candidates, reviewing carrier identity, authority, insurance, suitability, and commercial terms, then selecting an approved carrier.
+- **Driver assignment**: Recording the driver, dispatcher, tractor, trailer, and tracking details supplied by the selected carrier.
+- **Rate confirmation**: Commercial agreement describing carrier compensation.
+- **BOL**: Bill of lading; shipment document issued at pickup.
+- **POD**: Proof of delivery.
+- **Lumper**: Third-party loading or unloading labor.
+- **Dwell**: Time spent at a facility.
+- **Detention**: Compensable excess dwell after an agreed threshold.
+- **Operating authority**: Legal authority concept requiring official future verification.
+- **MC/USDOT**: US carrier identifiers; demo values containing `XX` are placeholders.
+- **Gross profit (GP)**: Customer revenue minus carrier cost and applicable modeled costs.
+- **ETA**: Estimated time of arrival; demo ETA is synthetic.
+- **Exception**: Operational condition requiring investigation, ownership, and resolution evidence.
+- **Idempotency**: Repeating a consequential command returns the original result rather than duplicating it.

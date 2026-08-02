@@ -1,0 +1,41 @@
+{
+  "name": "project-atlas",
+  "private": true,
+  "engines": {
+    "node": "22.x"
+  },
+  "packageManager": "pnpm@10.28.1",
+  "scripts": {
+    "dev": "pnpm --filter @atlas/web dev",
+    "build": "pnpm --filter @atlas/web build",
+    "lint": "pnpm --filter @atlas/web lint",
+    "typecheck": "pnpm --filter @atlas/web typecheck",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "dotenv -e .env -- vitest run tests/integration",
+    "test:e2e": "playwright test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "prisma generate --schema packages/db/prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema packages/db/prisma/schema.prisma",
+    "db:deploy": "prisma migrate deploy --schema packages/db/prisma/schema.prisma",
+    "db:seed": "tsx packages/db/prisma/seed.ts",
+    "db:seed:staging": "tsx apps/web/scripts/seed-staging.ts",
+    "db:verify:staging": "tsx apps/web/scripts/verify-staging.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.54.1",
+    "@types/node": "22.17.0",
+    "dotenv-cli": "8.0.0",
+    "prettier": "3.6.2",
+    "prisma": "6.13.0",
+    "tsx": "4.20.3",
+    "typescript": "5.8.3",
+    "vitest": "3.2.4"
+  },
+  "dependencies": {
+    "@prisma/client": "6.13.0",
+    "better-auth": "1.6.25",
+    "zod": "3.25.76"
+  }
+}
