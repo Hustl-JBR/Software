@@ -1,7 +1,7 @@
 # Next steps
 
 1. Review and merge the stacked facilities/routing PR only after its clean PostgreSQL migration and responsive staging evidence pass; do not merge PR #2 automatically.
-2. If the owner approves Google activation, create separately restricted browser/server keys, configure budgets/quotas, add the four Railway variables without exposing values, deploy, and verify a real selected address plus a real general road estimate.
+2. Keep the employee workflow mapping-provider-free unless a later owner-approved product phase replaces the manual-address and OpenStreetMap-link decision.
 3. Do not begin commercial routing/provider procurement, load boards, GPS/ELD, customer portal, EDI, accounting, payment, or other excluded integrations in this phase.
 
 4. Complete this recovery's CI, Railway staging deployment, browser matrix, and persistence verification without creating infrastructure.

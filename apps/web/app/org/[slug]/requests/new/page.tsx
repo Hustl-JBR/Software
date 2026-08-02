@@ -52,7 +52,7 @@ export default async function NewRequest({
   return (
     <>
       <div className="breadcrumb">
-        <a href={`/org/${slug}`}>Command center</a>
+        <a href={`/org/${slug}`}>Today</a>
         <span>/</span>
         <strong>New shipment</strong>
       </div>

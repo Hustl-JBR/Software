@@ -161,7 +161,6 @@ export function StagingNetworkWorkspace({
         </a>
         <a href="#drivers">Drivers · {drivers.length}</a>
         <a href="#customers">Customers · {customers.length}</a>
-        <a href="#facilities">Facilities · {facilities.length}</a>
       </nav>
       <section
         className="panel network-workspace staging-directory"
@@ -234,6 +233,7 @@ export function StagingNetworkWorkspace({
       <section
         className="panel network-workspace staging-directory"
         id="facilities"
+        hidden
       >
         <div className="panel-heading">
           <div>

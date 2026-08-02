@@ -39,10 +39,12 @@ export function SidebarNav({
       <nav className="primary-nav" aria-label="Primary navigation">
         {navigation.primary.map(item)}
       </nav>
-      <div className="sidebar-section">
-        <p>Workspace</p>
-        {navigation.workspace.map(item)}
-      </div>
+      {navigation.workspace.length > 0 && (
+        <div className="sidebar-section">
+          <p>Workspace</p>
+          {navigation.workspace.map(item)}
+        </div>
+      )}
     </div>
   );
 }

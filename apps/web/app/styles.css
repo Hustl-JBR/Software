@@ -268,12 +268,55 @@ textarea {
   letter-spacing: 0.12em;
 }
 .sidebar-profile {
+  position: relative;
   margin-top: auto;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 13px 9px 3px;
   border-top: 1px solid #242e38;
+}
+.sidebar-profile summary {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  cursor: pointer;
+  list-style: none;
+}
+.sidebar-profile summary::-webkit-details-marker {
+  display: none;
+}
+.profile-menu-items {
+  position: absolute;
+  right: 0;
+  bottom: 52px;
+  left: 0;
+  z-index: 20;
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid #2e3945;
+  border-radius: 10px;
+  background: #111820;
+  box-shadow: 0 12px 32px #0008;
+}
+.profile-menu-items a,
+.profile-menu-items button {
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 7px;
+  color: #d9e3ee;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.profile-menu-items a:hover,
+.profile-menu-items button:hover {
+  background: #202a35;
 }
 .avatar {
   display: grid;

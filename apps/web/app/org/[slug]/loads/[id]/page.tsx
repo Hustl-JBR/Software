@@ -9,7 +9,6 @@ import {
 } from "@/app/ui/staging-load-operations";
 import { requireStagingWorkspace } from "@/lib/staging-workspace";
 import { z } from "zod";
-import { providerCapabilities } from "@/lib/providers";
 
 type LoadView = {
   id: string;
@@ -73,7 +72,7 @@ export default async function LoadDetail({
   return (
     <>
       <div className="breadcrumb">
-        <a href={`/org/${slug}`}>Command center</a>
+        <a href={`/org/${slug}`}>Today</a>
         <span>/</span>
         <a href={`/org/${slug}`}>Loads</a>
         <span>/</span>
@@ -512,7 +511,6 @@ async function stagingLoadView(
     take: 50,
   });
   const roleNames = new Set(roles);
-  const capabilities = providerCapabilities();
   const route = load.routeSnapshots[0];
   return {
     id: load.id,
@@ -542,23 +540,12 @@ async function stagingLoadView(
       end: stop.appointmentEnd,
       confirmed: stop.appointmentConfirmedAt,
       instructions: stop.instructions,
-      latitude: stop.latitude?.toNumber() ?? null,
-      longitude: stop.longitude?.toNumber() ?? null,
       timeZone: stop.timeZone,
     })),
     route: route
       ? {
           distanceMeters: route.distanceMeters,
-          durationSeconds: route.durationSeconds,
-          encodedPolyline: route.encodedPolyline ?? undefined,
-          warning: route.warning,
-          provider: route.provider,
-          calculatedAt: route.calculatedAt,
         }
-      : undefined,
-    routeProviderAvailable: capabilities.routing.available,
-    mapBrowserKey: capabilities.browserMapAvailable
-      ? process.env.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY
       : undefined,
     candidates: load.carrierCandidates.map((candidate) => ({
       id: candidate.id,

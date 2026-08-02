@@ -21,12 +21,10 @@ import {
   recordDriver,
   selectCarrier,
   updateOwnership,
-  calculateRoute,
   attachStopFacility,
 } from "@/app/org/[slug]/staging/actions";
 import { randomUUID } from "node:crypto";
 import { ErrorAlert } from "./error-alert";
-import { RouteMap } from "./route-map";
 import { formatInFacilityTimeZone } from "@atlas/domain/timezone";
 
 export type StagingLoadOperationsView = {
@@ -57,20 +55,11 @@ export type StagingLoadOperationsView = {
     end: Date | null;
     confirmed: Date | null;
     instructions: string | null;
-    latitude: number | null;
-    longitude: number | null;
     timeZone: string | null;
   }>;
   route?: {
     distanceMeters: number;
-    durationSeconds: number;
-    encodedPolyline?: string;
-    warning: string;
-    provider: string;
-    calculatedAt: Date;
   };
-  routeProviderAvailable: boolean;
-  mapBrowserKey?: string;
   candidates: Array<{
     id: string;
     name: string;
@@ -147,6 +136,11 @@ export function StagingLoadOperations({
   const selected = load.candidates.find(
     (candidate) => candidate.status === "SELECTED",
   );
+  const openStreetMapHref = origin
+    ? `https://www.openstreetmap.org/search?query=${encodeURIComponent(
+        `${origin.facility}, ${origin.city}, ${origin.state} ${origin.postalCode}`,
+      )}`
+    : "https://www.openstreetmap.org";
   const tabs = [
     "overview",
     "tracking",
@@ -163,7 +157,7 @@ export function StagingLoadOperations({
   return (
     <>
       <div className="breadcrumb">
-        <Link href={`/org/${slug}`}>Command center</Link>
+        <Link href={`/org/${slug}`}>Today</Link>
         <span>/</span>
         <Link href={`/org/${slug}/loads`}>Loads</Link>
         <span>/</span>
@@ -222,42 +216,23 @@ export function StagingLoadOperations({
               </h2>
             </div>
           </div>
-          <RouteMap
-            apiKey={load.mapBrowserKey}
-            stops={load.stops.flatMap((stop) =>
-              stop.latitude === null || stop.longitude === null
-                ? []
-                : [{ lat: stop.latitude, lng: stop.longitude }],
-            )}
-            encodedPolyline={load.route?.encodedPolyline}
-          />
           <div className="route-disclaimer">
-            <b>General road estimate</b>
+            <b>Manual stop addresses</b>
             <span>
               {load.route
-                ? `${Math.round(load.route.distanceMeters / 1609.344).toLocaleString()} mi · ${Math.round(load.route.durationSeconds / 3600)} hr · ${load.route.provider}`
-                : "No route estimate has been calculated."}
+                ? `Estimated mileage: ${Math.round(load.route.distanceMeters / 1609.344).toLocaleString()} mi`
+                : "Estimated mileage is optional and has not been entered."}
             </span>
-            <small>
-              {load.route?.warning ??
-                "Not truck-legal or commercial vehicle routing. Do not use for clearance, weight, hazmat, or legal-road decisions."}
-            </small>
+            <small>Addresses are entered and reviewed manually.</small>
           </div>
-          {load.canManageLoad && load.routeProviderAvailable && (
-            <form action={calculateRoute} className="record-action-form">
-              <HiddenFields slug={slug} loadId={load.id} />
-              <input type="hidden" name="idempotencyKey" value={randomUUID()} />
-              <button className="button button-secondary">
-                Calculate general road estimate
-              </button>
-            </form>
-          )}
-          {!load.routeProviderAvailable && (
-            <InactiveState
-              title="Route provider not configured"
-              body="Facility and stop workflows remain usable. Add approved server credentials to enable estimates."
-            />
-          )}
+          <a
+            className="button button-secondary"
+            href={openStreetMapHref}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open in OpenStreetMap
+          </a>
           <div className="route-vitals">
             <span>
               <small>Pickup</small>

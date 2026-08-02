@@ -61,7 +61,7 @@ export default async function Review({
   return (
     <>
       <div className="breadcrumb">
-        <a href={`/org/${slug}`}>Command center</a>
+        <a href={`/org/${slug}`}>Today</a>
         <span>/</span>
         <a href={`/org/${slug}`}>Requests</a>
         <span>/</span>

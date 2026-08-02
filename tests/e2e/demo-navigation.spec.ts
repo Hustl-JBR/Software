@@ -6,13 +6,12 @@ test.skip(
 );
 
 const routes = [
-  ["Command center", "/org/atlas-north", "Good morning, Jordan."],
+  ["Today", "/org/atlas-north", "Good morning, Jordan."],
+  ["Quotes", "/org/atlas-north/loads#quotes", "Loads"],
   ["Loads", "/org/atlas-north/loads", "Loads"],
-  ["Tracking", "/org/atlas-north/tracking", "Global tracking"],
-  ["Network", "/org/atlas-north/network", "Network"],
-  ["Analytics", "/org/atlas-north/analytics", "Analytics"],
-  ["Documents", "/org/atlas-north/documents", "Documents"],
-  ["Settings", "/org/atlas-north/settings", "Settings"],
+  ["Customers", "/org/atlas-north/network#customers", "Network"],
+  ["Carriers", "/org/atlas-north/network#carriers", "Network"],
+  ["Money", "/org/atlas-north/analytics", "Analytics"],
 ] as const;
 
 test.describe("demo workspace navigation", () => {
@@ -33,9 +32,10 @@ test.describe("demo workspace navigation", () => {
         new RegExp(`${path.replaceAll("/", "\\/")}$`),
       );
       await expect(page.getByRole("heading", { name: heading })).toBeVisible();
-      await expect(
-        sidebar.getByRole("link", { name: label, exact: false }),
-      ).toHaveClass(/active/);
+      if (!path.includes("#"))
+        await expect(
+          sidebar.getByRole("link", { name: label, exact: false }),
+        ).toHaveClass(/active/);
 
       await page.goto(path);
       await expect(page.getByRole("heading", { name: heading })).toBeVisible();
@@ -48,8 +48,8 @@ test.describe("demo workspace navigation", () => {
     const sidebar = page.locator(".sidebar");
     await sidebar.getByRole("link", { name: "Loads", exact: false }).click();
     await expect(page).toHaveURL(/\/org\/atlas-north\/loads$/);
-    await sidebar.getByRole("link", { name: "Tracking", exact: false }).click();
-    await expect(page).toHaveURL(/\/org\/atlas-north\/tracking$/);
+    await sidebar.getByRole("link", { name: "Money", exact: false }).click();
+    await expect(page).toHaveURL(/\/org\/atlas-north\/analytics$/);
     await page.waitForTimeout(250);
     await page.goBack({ waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/org\/atlas-north\/loads$/);
@@ -58,7 +58,7 @@ test.describe("demo workspace navigation", () => {
     });
     await page.goForward({ waitUntil: "domcontentloaded" });
     await expect(
-      page.getByRole("heading", { name: "Global tracking" }),
+      page.getByRole("heading", { name: "Analytics" }),
     ).toBeVisible();
 
     await page.goto("/org/atlas-north/not-a-real-workspace");
@@ -66,7 +66,7 @@ test.describe("demo workspace navigation", () => {
       page.getByRole("heading", { name: "That record is unavailable." }),
     ).toBeVisible();
     await expect(
-      page.getByRole("link", { name: "Return to command center" }),
+      page.getByRole("link", { name: "Return to Today" }),
     ).toBeVisible();
   });
 });
@@ -111,7 +111,7 @@ test("tracking interruption becomes shared command-center attention", async ({
   await page.getByRole("button", { name: "Pause updates" }).click();
   await page
     .locator(".sidebar")
-    .getByRole("link", { name: "Command center", exact: false })
+    .getByRole("link", { name: "Today", exact: false })
     .click();
   await expect(page.getByText("Driver tracking was interrupted")).toBeVisible();
 });

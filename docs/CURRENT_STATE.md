@@ -2,6 +2,10 @@
 
 Last verified locally: 2026-08-02. Active stacked branch: `codex/facilities-routing-foundation`, based exactly on frozen PR #2 head `7f09f18`.
 
+## Reviewable staging simplification
+
+The employee shell now uses the six-item primary navigation Today, Quotes, Loads, Customers, Carriers, and Money; Settings is in the user menu. Today is limited to Needs Attention (five items maximum), today’s pickups and deliveries, quotes waiting, and recent activity. Attention copy names the action to take. Facilities are no longer presented as a primary or standalone employee module. Load overview uses manually entered stop addresses, optional stored mileage, and an external OpenStreetMap link; Google maps, provider setup/status, coordinates, route calculation, and credential warnings are absent from the active employee experience.
+
 ## Facilities and routing foundation in progress
 
 The stacked branch adds persistent organization-scoped facilities, provider/manual address provenance, coordinates and IANA zones, immutable stop snapshots, facility-local appointment conversion with DST gap/overlap handling, provider-neutral route snapshots, and metadata-only provider usage records. Network now contains a real facility directory; intake can select reusable facilities; a load stop can snapshot one; and load overview can display a Google map and calculate an explicitly non-truck-legal general road estimate when approved credentials exist.

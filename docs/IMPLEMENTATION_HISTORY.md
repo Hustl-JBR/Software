@@ -1,5 +1,12 @@
 # Implementation history
 
+## 2026-08-02: Reviewable staging simplification
+
+- Renamed the command-center experience to Today and reduced primary navigation to Today, Quotes, Loads, Customers, Carriers, and Money, with Settings moved into the user menu.
+- Reduced Today to Needs Attention (maximum five), today’s pickups and deliveries, quotes waiting, and recent activity; vague review labels were replaced with the task an employee must perform.
+- Removed Facilities and Google mapping/provider states from the active employee experience. Stop locations remain manual/reusable records, with optional stored mileage and an external OpenStreetMap link.
+- Kept existing load-operation sections and their navigation tabs rather than introducing an architecture rewrite.
+
 ## 2026-08-02: Claude-report recovery and employee-operations simplification
 
 Claude's reported branch, commits, bundle, and patch were unavailable after local, attachment, object, branch, and fetched-remote checks. A dedicated Codex branch recreated the approved behaviors without claiming exact recovery. The milestone makes explicit role rows authoritative, sanitizes operator errors and malformed identifiers, removes fabricated staging analysis, expands reviewed equipment support, annotates PostgreSQL timestamp intent, introduces normal dollar entry, blocks impossible DRAFT/physical-tracking combinations, creates `/operations`, isolates administrator tools, moves actions to their records, translates activity language, and raises employee UI readability. New migrations are narrow and contain no timestamp rewrite. Verification and deployment results are recorded separately as they complete.
