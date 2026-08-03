@@ -1,5 +1,8 @@
 # Known issues
 
+- Uploaded documents are capped at 5 MB and stored in PostgreSQL; production use needs reviewed object storage, retention, access logging, and malware scanning.
+- Mileage, DAT posting, carrier review, tracking, invoices, bills, and payment states are manual records, not provider-verified events.
+
 - Mileage is optional and manually reviewed; Atlas does not provide truck-legal routing or an in-product map.
 
 - Active demo operations are browser-session state and are not durable or multi-user.

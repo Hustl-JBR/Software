@@ -11,16 +11,15 @@ export function atlasNavigation(slug: string, loadCount?: number) {
   return {
     primary: [
       { label: "Today", icon: "⌂", href: root, exact: true },
-      { label: "Quotes", icon: "$", href: `${root}/loads#quotes` },
+      { label: "Quotes", icon: "Q", href: `${root}/quotes` },
       {
         label: "Loads",
         icon: "↗",
         href: `${root}/loads`,
         count: loadCount === undefined ? undefined : String(loadCount),
       },
-      { label: "Customers", icon: "◇", href: `${root}/network#customers` },
-      { label: "Carriers", icon: "↗", href: `${root}/network#carriers` },
-      { label: "Money", icon: "$", href: `${root}/analytics` },
+      { label: "Companies", icon: "C", href: `${root}/companies` },
+      { label: "Money", icon: "$", href: `${root}/money` },
     ] satisfies AtlasNavigationItem[],
     workspace: [] satisfies AtlasNavigationItem[],
   };

@@ -1,6 +1,12 @@
 # Current state
 
-Last verified locally: 2026-08-02. Active stacked branch: `codex/facilities-routing-foundation`, based exactly on frozen PR #2 head `7f09f18`.
+Last updated: 2026-08-02. All former stacked PRs are merged. Active implementation branch: `codex/ready-operations`, based on merged `main` commit `373397d`.
+
+## Ready Operations replacement
+
+The visible product is now **READY OPERATIONS**, with the supporting label “Internal operating system for Ready Freight.” The persistent app covers customer and carrier companies, complete quotes, accepted-quote conversion to uncovered loads, manual DAT posting, approved-carrier booking, rate confirmations, dispatch and manual tracking, delivery and POD, invoices, carrier bills, payments, margin, and guarded completion. Primary navigation is exactly Today, Quotes, Loads, Companies, and Money. Load detail uses Overview, Stops, Carrier, Updates, Documents, Money, and Activity.
+
+Authentication, memberships, roles, tenant isolation, audit events, PostgreSQL migrations, guarded staging verification, Railway configuration, and database health checks remain intact. Existing Atlas-prefixed internal identifiers remain to avoid infrastructure risk.
 
 ## Reviewable staging simplification
 

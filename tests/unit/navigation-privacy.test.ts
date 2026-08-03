@@ -15,8 +15,7 @@ describe("demo navigation", () => {
       "Today",
       "Quotes",
       "Loads",
-      "Customers",
-      "Carriers",
+      "Companies",
       "Money",
     ]);
     expect(new Set(items.map((item) => item.href)).size).toBe(items.length);

@@ -16,7 +16,7 @@ export default async function SignIn({
       <aside className="auth-visual">
         <span className="brand-mark">A</span>
         <div>
-          <p className="overline">Atlas operations</p>
+          <p className="overline">Ready Operations</p>
           <h1>Keep every load moving with a clear operational picture.</h1>
           <p>
             Persistent requests, approvals, dispatch controls, communications,
@@ -45,13 +45,13 @@ export default async function SignIn({
           <p className="eyebrow">Internal access</p>
           <h2>Welcome back</h2>
           <p className="muted">
-            Sign in with your provisioned Atlas staging account.
+            Sign in with your provisioned Ready Freight staging account.
           </p>
         </div>
         {error && (
           <div className="alert error" role="alert">
             {error === "database"
-              ? "Atlas cannot reach the staging database. Try again shortly or contact the staging administrator."
+              ? "Ready Operations cannot reach the staging database. Try again shortly or contact the staging administrator."
               : "The email or password is invalid, or this account is inactive."}
           </div>
         )}
@@ -83,8 +83,8 @@ export default async function SignIn({
           <b>Need access or a password reset?</b>
           <p>
             Account creation and recovery are administrator-controlled in this
-            milestone. Contact the staging administrator; Atlas never displays
-            seeded credentials.
+            milestone. Contact the staging administrator; Ready Operations never
+            displays seeded credentials.
           </p>
         </div>
       </div>

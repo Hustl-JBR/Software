@@ -50,7 +50,7 @@ export function MobileNavigation({
         </button>
         <Link className="brand mobile-brand" href={commandHref}>
           <span className="brand-mark">A</span>
-          <span className="brand-word">ATLAS</span>
+          <span className="brand-word">READY OPERATIONS</span>
         </Link>
         <span className={`demo-label ${demo ? "" : "staging-label"}`}>
           {demo ? "DEMO" : "STAGING · POSTGRESQL"}
@@ -75,7 +75,7 @@ export function MobileNavigation({
         <div className="mobile-drawer-heading">
           <Link className="brand" href={commandHref}>
             <span className="brand-mark">A</span>
-            <span className="brand-word">ATLAS</span>
+            <span className="brand-word">READY OPERATIONS</span>
           </Link>
           <button
             type="button"

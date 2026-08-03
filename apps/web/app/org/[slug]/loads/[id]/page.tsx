@@ -1,617 +1,582 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@atlas/db/client";
-import { DEMO_ORGANIZATION, getDemoLoad, isDemoMode } from "@/lib/demo-store";
-import { initialOperationsDemoState } from "@/lib/operations-demo-data";
-import { DemoLoadOperations } from "@/app/ui/demo-load-operations";
-import {
-  StagingLoadOperations,
-  type StagingLoadOperationsView,
-} from "@/app/ui/staging-load-operations";
 import { requireStagingWorkspace } from "@/lib/staging-workspace";
-import { z } from "zod";
+import {
+  updateLoad,
+  updateMoney,
+  uploadLoadDocument,
+} from "../../ready-actions";
 
-type LoadView = {
-  id: string;
-  loadNumber: string;
-  status: string;
-  customer: { name: string };
-  commodity: string;
-  weightPounds: number;
-  equipmentType: string;
-  pickupDate: Date;
-  deliveryDate: Date;
-  approvedRevision: { revisionNumber: number };
-  stops: Array<{
-    id: string;
-    sequence: number;
-    type: string;
-    facilityName: string;
-    city: string;
-    state: string;
-    postalCode: string;
-  }>;
-  audits: Array<{
-    id: string;
-    action: string;
-    entityType: string;
-    correlationId: string;
-    createdAt: Date;
-  }>;
-};
-
-export default async function LoadDetail({
+const tabs = [
+  "overview",
+  "stops",
+  "carrier",
+  "updates",
+  "documents",
+  "money",
+  "activity",
+] as const;
+export default async function LoadPage({
   params,
   searchParams,
 }: {
   params: Promise<{ slug: string; id: string }>;
-  searchParams: Promise<{ saved?: string; error?: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const { slug, id } = await params;
-  if (!isDemoMode()) {
-    const stagingLoad = await stagingLoadView(slug, id);
-    if (!stagingLoad) notFound();
-    const query = await searchParams;
-    return (
-      <StagingLoadOperations
-        slug={slug}
-        load={stagingLoad}
-        saved={query.saved}
-        error={query.error}
-      />
-    );
-  }
-  if (
-    isDemoMode() &&
-    slug === DEMO_ORGANIZATION.slug &&
-    initialOperationsDemoState.loads.some((load) => load.id === id)
-  ) {
-    return <DemoLoadOperations loadId={id} slug={slug} />;
-  }
-  const load = demoLoadView(slug, id);
+  const requested = (await searchParams).tab;
+  const tab = tabs.includes(requested as never) ? requested! : "overview";
+  const { membership } = await requireStagingWorkspace(slug);
+  const [load, carriers, activity] = await Promise.all([
+    prisma.load.findFirst({
+      where: { id, organizationId: membership.organizationId },
+      include: {
+        customer: true,
+        stops: { orderBy: { sequence: "asc" } },
+        carrier: true,
+        driverAssignment: true,
+        trackingUpdates: { orderBy: { occurredAt: "desc" } },
+        documents: { orderBy: { createdAt: "desc" } },
+        customerInvoice: true,
+        carrierBill: true,
+      },
+    }),
+    prisma.carrier.findMany({
+      where: {
+        organizationId: membership.organizationId,
+        reviewStatus: "APPROVED",
+      },
+      orderBy: { legalName: "asc" },
+    }),
+    prisma.auditEvent.findMany({
+      where: { organizationId: membership.organizationId, entityId: id },
+      orderBy: { createdAt: "desc" },
+      take: 25,
+    }),
+  ]);
   if (!load) notFound();
+  const pickup = load.stops[0],
+    delivery = load.stops.at(-1);
+  const price = Number(load.customerPriceCents || 0n),
+    cost = Number(load.carrierCostCents || 0n);
+  const hasSigned = load.documents.some(
+    (d) => d.type === "SIGNED_RATE_CONFIRMATION",
+  );
   return (
-    <>
-      <div className="breadcrumb">
-        <a href={`/org/${slug}`}>Today</a>
-        <span>/</span>
-        <a href={`/org/${slug}`}>Loads</a>
-        <span>/</span>
-        <strong>{load.loadNumber}</strong>
-      </div>
-      <div className="load-hero">
+    <div className="ready-page">
+      <header className="ready-heading">
         <div>
-          <div className="title-line">
-            <p className="overline">Draft load created</p>
-            <span className="status-pill green">{load.status}</span>
-          </div>
+          <p className="overline">
+            {load.status === "DRAFT"
+              ? "UNCOVERED"
+              : load.status.replaceAll("_", " ")}
+            {load.delayed ? " · DELAYED" : ""}
+            {load.onHold ? " · ON HOLD" : ""}
+          </p>
           <h1>{load.loadNumber}</h1>
           <p>
-            {load.customer.name} <span>·</span> {load.commodity} <span>·</span>{" "}
-            {load.weightPounds.toLocaleString()} lb
+            {load.customer.name} · {pickup?.city}, {pickup?.state} →{" "}
+            {delivery?.city}, {delivery?.state}
           </p>
         </div>
-        <div className="load-actions">
-          <button className="button button-ghost">•••</button>
-          <button className="button button-secondary">Share load</button>
-          <button className="button button-primary">
-            Begin execution <span>→</span>
-          </button>
+        <div className="ready-heading-actions">
+          <a
+            className="button"
+            href={`/api/org/${slug}/loads/${id}/rate-confirmation`}
+          >
+            Rate confirmation PDF
+          </a>
         </div>
-      </div>
-      <nav className="content-tabs load-tabs">
-        <a className="active" href="#overview">
-          Overview
-        </a>
-        <a href="#stops">
-          Stops <b>2</b>
-        </a>
-        <span>
-          Documents <b>0</b>
-        </span>
-        <span>
-          Communications <b>0</b>
-        </span>
-        <a href="#timeline">Timeline</a>
-        <a href="#audit">Audit</a>
-        <a href="#analysis">AI analysis</a>
-      </nav>
-
-      <section className="load-layout" id="overview">
-        <div className="load-main">
-          <article className="panel route-overview" id="stops">
-            <div className="panel-heading">
-              <div>
-                <p className="overline">Route overview</p>
-                <h2>Nashville, TN → Atlanta, GA</h2>
-              </div>
-              <span className="route-distance">248 miles · 3h 48m</span>
-            </div>
-            <div className="mini-map">
-              <div className="map-grid" />
-              <div className="route-arc" />
-              <span className="route-pin origin-pin">
-                1<small>Nashville</small>
-              </span>
-              <span className="route-pin destination-pin">
-                2<small>Atlanta</small>
-              </span>
-              <span className="truck-marker">▰</span>
-            </div>
-            <div className="stop-cards">
-              {load.stops.map((stop) => (
-                <article className="stop-card" key={stop.id}>
-                  <div className="stop-card-top">
-                    <span className={`stop-number ${stop.type.toLowerCase()}`}>
-                      {stop.sequence}
-                    </span>
-                    <div>
-                      <p className="overline">{stop.type}</p>
-                      <h3>{stop.facilityName}</h3>
-                    </div>
-                    <span className="status-pill slate">Scheduled</span>
-                  </div>
-                  <address>
-                    {stop.city}, {stop.state} {stop.postalCode}
-                  </address>
-                  <div className="stop-meta">
-                    <span>
-                      <small>Appointment</small>
-                      <b>
-                        {stop.type === "PICKUP"
-                          ? "Aug 5 · 08:00–10:00"
-                          : "Aug 6 · 09:00–11:00"}
-                      </b>
-                    </span>
-                    <span>
-                      <small>Contact</small>
-                      <b>
-                        {stop.type === "PICKUP"
-                          ? "Maria Lopez"
-                          : "Receiving desk"}
-                      </b>
-                    </span>
-                  </div>
-                  <div className="stop-footer">
-                    <span>
-                      <i /> Awaiting arrival
-                    </span>
-                    <button className="inline-action">
-                      View stop details →
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </article>
-
-          <article className="panel shipment-overview">
-            <div className="panel-heading">
-              <div>
-                <p className="overline">Freight profile</p>
-                <h2>Shipment information</h2>
-              </div>
-              <span className="verified-chip">✓ Human verified</span>
-            </div>
-            <div className="overview-facts">
-              <Fact label="Customer" value={load.customer.name} icon="◫" />
-              <Fact label="Commodity" value={load.commodity} icon="◇" />
-              <Fact
-                label="Weight"
-                value={`${load.weightPounds.toLocaleString()} lb`}
-                icon="▥"
-              />
-              <Fact label="Equipment" value="53′ Dry van" icon="▰" />
-              <Fact label="Pickup" value={date(load.pickupDate)} icon="◷" />
-              <Fact label="Delivery" value={date(load.deliveryDate)} icon="◷" />
-              <Fact
-                label="Approved revision"
-                value={`#${load.approvedRevision.revisionNumber}`}
-                icon="✓"
-              />
-              <Fact label="Pallets" value="18" icon="▦" />
-            </div>
-          </article>
-
-          <article className="panel mission-timeline" id="timeline">
-            <div className="panel-heading">
-              <div>
-                <p className="overline">Mission timeline</p>
-                <h2>What happened</h2>
-                <p>Every consequential event, in human language.</p>
-              </div>
-              <span className="immutable-chip">◈ Immutable</span>
-            </div>
-            <div className="mission-events">
-              {load.audits.map((event, index) => (
-                <MissionEvent
-                  key={event.id}
-                  event={event}
-                  index={index}
-                  last={index === load.audits.length - 1}
-                />
-              ))}
-            </div>
-          </article>
-        </div>
-
-        <aside className="load-aside">
-          <section className="panel load-status-card">
-            <div className="status-ring">
-              <span>DRAFT</span>
-              <small>Ready</small>
-            </div>
-            <h2>Ready for execution</h2>
-            <p>
-              Shipment data is complete. Assign a carrier and confirm
-              appointments when you are ready.
-            </p>
-            <div className="readiness">
-              <span>
-                <i className="done" /> Shipment approved
-              </span>
-              <span>
-                <i className="done" /> Stops created
-              </span>
-              <span>
-                <i /> Carrier assignment
-              </span>
-              <span>
-                <i /> Appointment confirmation
-              </span>
-            </div>
-          </section>
-          <section className="panel load-ai-card" id="analysis">
-            <div className="panel-heading">
-              <div>
-                <p className="overline violet">Atlas intelligence</p>
-                <h2>Load analysis</h2>
-              </div>
-              <span className="ai-orb">✦</span>
-            </div>
-            <div className="analysis-score">
-              <strong>96</strong>
-              <span>
-                <b>Low operational risk</b>
-                <small>Confidence score</small>
-              </span>
-            </div>
-            <div className="ai-callout">
-              <span>↗</span>
-              <p>
-                <b>Strong Nashville–Atlanta lane</b>
-                <small>
-                  Carrier availability is typically highest before noon.
-                </small>
-              </p>
-            </div>
-            <div className="ai-callout warning-callout">
-              <span>!</span>
-              <p>
-                <b>Confirm appointment windows</b>
-                <small>Both stops currently use suggested demo windows.</small>
-              </p>
-            </div>
-          </section>
-          <section className="panel team-card">
-            <div className="panel-heading">
-              <div>
-                <p className="overline">Ownership</p>
-                <h2>Load team</h2>
-              </div>
-            </div>
-            <div className="owner-row">
-              <span className="avatar purple">DA</span>
-              <p>
-                <b>Demo Approver</b>
-                <small>Operations lead</small>
-              </p>
-              <span className="presence" />
-            </div>
-            <button className="button button-ghost full-button">
-              ＋ Add teammate
-            </button>
-          </section>
-          <section className="panel audit-proof" id="audit">
-            <span>◈</span>
-            <div>
-              <p className="overline">Audit integrity</p>
-              <h3>Protected by Atlas</h3>
-              <p>
-                7 immutable events · Correlation{" "}
-                {load.audits[0]?.correlationId.slice(0, 8)}
-              </p>
-            </div>
-          </section>
-        </aside>
+      </header>
+      <section className="ready-load-facts">
+        <Fact label="Pickup" value={load.pickupDate.toLocaleDateString()} />
+        <Fact label="Delivery" value={load.deliveryDate.toLocaleDateString()} />
+        <Fact label="Equipment" value={load.equipmentType} />
+        <Fact
+          label="Carrier"
+          value={load.carrier?.legalName || "Not assigned"}
+        />
+        <Fact label="Customer price" value={`$${(price / 100).toFixed(2)}`} />
+        <Fact
+          label="Gross margin"
+          value={`$${((price - cost) / 100).toFixed(2)}`}
+        />
       </section>
+      <nav className="ready-tabs">
+        {tabs.map((name) => (
+          <Link
+            key={name}
+            className={tab === name ? "active" : ""}
+            href={`/org/${slug}/loads/${id}?tab=${name}`}
+          >
+            {name[0].toUpperCase() + name.slice(1)}
+          </Link>
+        ))}
+      </nav>
+      {tab === "overview" && (
+        <div className="ready-two">
+          <section className="panel ready-facts">
+            <h2>Overview</h2>
+            <dl>
+              <dt>Commodity</dt>
+              <dd>{load.commodity}</dd>
+              <dt>Weight / pallets</dt>
+              <dd>
+                {load.weightPounds.toLocaleString()} lb /{" "}
+                {load.palletCount || "—"}
+              </dd>
+              <dt>Special instructions</dt>
+              <dd>{load.specialInstructions || "None"}</dd>
+              <dt>Manual mileage</dt>
+              <dd>{load.estimatedMileage || "Not entered"}</dd>
+              <dt>DAT posting</dt>
+              <dd>{load.datPostingReference || "Not posted"}</dd>
+              <dt>Exception</dt>
+              <dd>{load.exceptionDetails || "None"}</dd>
+            </dl>
+          </section>
+          <section className="panel ready-actions">
+            <h2>Load actions</h2>
+            <form action={updateLoad}>
+              <Hidden slug={slug} id={id} operation="DAT" />
+              <label>
+                DAT posting reference
+                <input
+                  name="datPostingReference"
+                  placeholder="DAT post ID or note"
+                />
+              </label>
+              <label>
+                Estimated mileage
+                <input type="number" name="estimatedMileage" />
+              </label>
+              <button className="button">Record manual DAT post</button>
+            </form>
+            <form action={updateLoad}>
+              <Hidden slug={slug} id={id} operation="EXCEPTION" />
+              <label className="check">
+                <input
+                  type="checkbox"
+                  name="delayed"
+                  defaultChecked={load.delayed}
+                />{" "}
+                Delayed
+              </label>
+              <label className="check">
+                <input
+                  type="checkbox"
+                  name="onHold"
+                  defaultChecked={load.onHold}
+                />{" "}
+                On hold
+              </label>
+              <label>
+                Details
+                <input
+                  name="exceptionDetails"
+                  defaultValue={load.exceptionDetails || ""}
+                />
+              </label>
+              <button className="button">Save flags</button>
+            </form>
+          </section>
+        </div>
+      )}
+      {tab === "stops" && (
+        <section className="panel">
+          {load.stops.map((stop) => {
+            const address = [
+              stop.addressLine1,
+              stop.city,
+              stop.state,
+              stop.postalCode,
+            ]
+              .filter(Boolean)
+              .join(", ");
+            return (
+              <div className="ready-row" key={stop.id}>
+                <span>
+                  <strong>{stop.type}</strong>
+                  <small>{address}</small>
+                </span>
+                <a
+                  href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(address)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open in OpenStreetMap ↗
+                </a>
+              </div>
+            );
+          })}
+        </section>
+      )}
+      {tab === "carrier" && (
+        <div className="ready-two">
+          <section className="panel ready-facts">
+            <h2>Booked carrier</h2>
+            {load.carrier ? (
+              <dl>
+                <dt>Legal name</dt>
+                <dd>{load.carrier.legalName}</dd>
+                <dt>MC / USDOT</dt>
+                <dd>
+                  {load.carrier.mcNumber || "—"} /{" "}
+                  {load.carrier.usdotNumber || "—"}
+                </dd>
+                <dt>Contact</dt>
+                <dd>
+                  {load.carrier.contactName || "—"} ·{" "}
+                  {load.carrier.contactPhone || "—"}
+                </dd>
+                <dt>Carrier cost</dt>
+                <dd>${(cost / 100).toFixed(2)}</dd>
+                <dt>Review</dt>
+                <dd>{load.carrier.reviewStatus}</dd>
+              </dl>
+            ) : (
+              <p>No carrier booked.</p>
+            )}
+          </section>
+          <section className="panel ready-actions">
+            <h2>Booking and dispatch</h2>
+            {!load.carrier && (
+              <form action={updateLoad}>
+                <Hidden slug={slug} id={id} operation="BOOK" />
+                <label>
+                  Approved carrier
+                  <select name="carrierId" required>
+                    <option value="">Select</option>
+                    {carriers.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.legalName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Agreed carrier cost
+                  <input name="carrierCost" required />
+                </label>
+                <button className="button button-primary">Book carrier</button>
+              </form>
+            )}
+            {load.carrier && !hasSigned && (
+              <p>
+                <strong>Upload the signed rate confirmation</strong> before
+                dispatch.
+              </p>
+            )}
+            {load.carrier &&
+              hasSigned &&
+              ![
+                "DISPATCHED",
+                "AT_PICKUP",
+                "IN_TRANSIT",
+                "AT_DELIVERY",
+                "DELIVERED",
+                "COMPLETED",
+              ].includes(load.status) && (
+                <Status
+                  slug={slug}
+                  id={id}
+                  status="DISPATCHED"
+                  label="Dispatch load"
+                />
+              )}
+          </section>
+        </div>
+      )}
+      {tab === "updates" && (
+        <div className="ready-two">
+          <section className="panel ready-actions">
+            <h2>Manual tracking update</h2>
+            <form action={updateLoad}>
+              <Hidden slug={slug} id={id} operation="TRACKING" />
+              <label>
+                Status
+                <input
+                  name="trackingStatus"
+                  placeholder="Driver checked in"
+                  required
+                />
+              </label>
+              <label>
+                Location
+                <input name="location" />
+              </label>
+              <label>
+                Notes
+                <textarea name="notes" />
+              </label>
+              <button className="button">Add update</button>
+            </form>
+            <h2>Progress load</h2>
+            {["AT_PICKUP", "IN_TRANSIT", "AT_DELIVERY", "DELIVERED"].map(
+              (s) => (
+                <Status
+                  key={s}
+                  slug={slug}
+                  id={id}
+                  status={s}
+                  label={s.replaceAll("_", " ")}
+                />
+              ),
+            )}
+          </section>
+          <section className="panel">
+            {load.trackingUpdates.map((u) => (
+              <div className="ready-row" key={u.id}>
+                <span>
+                  <strong>{u.status}</strong>
+                  <small>
+                    {u.location || "Location not entered"} · {u.notes}
+                  </small>
+                </span>
+                <small>{u.occurredAt.toLocaleString()}</small>
+              </div>
+            ))}
+          </section>
+        </div>
+      )}
+      {tab === "documents" && (
+        <div className="ready-two">
+          <section className="panel ready-actions">
+            <h2>Upload document</h2>
+            <form action={uploadLoadDocument}>
+              <input type="hidden" name="organizationSlug" value={slug} />
+              <input type="hidden" name="loadId" value={id} />
+              <label>
+                Document type
+                <select name="type">
+                  {[
+                    "SIGNED_RATE_CONFIRMATION",
+                    "BOL",
+                    "POD",
+                    "CARRIER_INVOICE",
+                    "LUMPER_RECEIPT",
+                    "OTHER",
+                  ].map((v) => (
+                    <option key={v} value={v}>
+                      {v.replaceAll("_", " ")}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                File
+                <input type="file" name="file" required />
+              </label>
+              <small>Maximum 5 MB. Stored in the staging database.</small>
+              <button className="button button-primary">Upload</button>
+            </form>
+          </section>
+          <section className="panel">
+            <h2>Load documents</h2>
+            {!load.documents.some((d) => d.type === "POD") &&
+              load.status === "DELIVERED" && (
+                <p className="ready-warning">
+                  POD MISSING — upload the POD to create the invoice.
+                </p>
+              )}
+            {load.documents.map((d) => (
+              <div className="ready-row" key={d.id}>
+                <span>
+                  <strong>{d.type.replaceAll("_", " ")}</strong>
+                  <small>{d.fileName}</small>
+                </span>
+                <a
+                  href={`/api/org/${slug}/loads/${id}/documents/${d.id}`}
+                  target="_blank"
+                >
+                  View
+                </a>
+              </div>
+            ))}
+          </section>
+        </div>
+      )}
+      {tab === "money" && (
+        <div className="ready-two">
+          <MoneyCard
+            title="Customer invoice"
+            status={load.customerInvoice?.status || "Not created"}
+            total={
+              load.customerInvoice
+                ? Number(
+                    load.customerInvoice.freightChargeCents +
+                      load.customerInvoice.accessorialsCents,
+                  )
+                : price
+            }
+          >
+            <form action={updateMoney}>
+              <input type="hidden" name="organizationSlug" value={slug} />
+              <input type="hidden" name="loadId" value={id} />
+              <input type="hidden" name="kind" value="invoice" />
+              <label>
+                Status
+                <select name="status">
+                  <option>SENT</option>
+                  <option>PARTIALLY_PAID</option>
+                  <option>PAID</option>
+                  <option>VOID</option>
+                </select>
+              </label>
+              <label>
+                Paid amount
+                <input name="paidAmount" />
+              </label>
+              <button className="button">Update invoice</button>
+            </form>
+            {load.customerInvoice && (
+              <a
+                className="button"
+                href={`/api/org/${slug}/loads/${id}/invoice`}
+              >
+                Invoice PDF
+              </a>
+            )}
+          </MoneyCard>
+          <MoneyCard
+            title="Carrier bill"
+            status={load.carrierBill?.status || "MISSING"}
+            total={
+              load.carrierBill
+                ? Number(
+                    load.carrierBill.linehaulCents +
+                      load.carrierBill.accessorialsCents,
+                  )
+                : cost
+            }
+          >
+            <form action={updateMoney}>
+              <input type="hidden" name="organizationSlug" value={slug} />
+              <input type="hidden" name="loadId" value={id} />
+              <input type="hidden" name="kind" value="bill" />
+              <label>
+                Carrier invoice #<input name="carrierInvoiceNumber" />
+              </label>
+              <label>
+                Accessorials
+                <input name="accessorials" />
+              </label>
+              <label>
+                Status
+                <select name="status">
+                  {[
+                    "RECEIVED",
+                    "UNDER_REVIEW",
+                    "APPROVED",
+                    "SCHEDULED",
+                    "PAID",
+                  ].map((s) => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Paid amount
+                <input name="paidAmount" />
+              </label>
+              <button className="button">Update bill</button>
+            </form>
+          </MoneyCard>
+          {load.customerInvoice?.status === "PAID" &&
+            load.carrierBill?.status === "PAID" &&
+            load.documents.some((d) => d.type === "POD") && (
+              <Status
+                slug={slug}
+                id={id}
+                status="COMPLETED"
+                label="Complete load"
+              />
+            )}
+        </div>
+      )}
+      {tab === "activity" && (
+        <section className="panel">
+          {activity.map((event) => (
+            <div className="ready-row" key={event.id}>
+              <strong>{event.action.replaceAll("_", " ")}</strong>
+              <small>{event.createdAt.toLocaleString()}</small>
+            </div>
+          ))}
+        </section>
+      )}
+    </div>
+  );
+}
+function Hidden({
+  slug,
+  id,
+  operation,
+}: {
+  slug: string;
+  id: string;
+  operation: string;
+}) {
+  return (
+    <>
+      <input type="hidden" name="organizationSlug" value={slug} />
+      <input type="hidden" name="loadId" value={id} />
+      <input type="hidden" name="operation" value={operation} />
     </>
   );
 }
-
-function Fact({
+function Status({
+  slug,
+  id,
+  status,
   label,
-  value,
-  icon,
 }: {
+  slug: string;
+  id: string;
+  status: string;
   label: string;
-  value: string;
-  icon: string;
 }) {
   return (
-    <div className="overview-fact">
-      <span>{icon}</span>
-      <p>
-        <small>{label}</small>
-        <b>{value}</b>
-      </p>
+    <form action={updateLoad}>
+      <Hidden slug={slug} id={id} operation="STATUS" />
+      <input type="hidden" name="status" value={status} />
+      {status === "DELIVERED" && (
+        <label>
+          Received by
+          <input name="deliveryReceiver" required />
+        </label>
+      )}
+      <button className="button button-primary">{label}</button>
+    </form>
+  );
+}
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <small>{label}</small>
+      <strong>{value}</strong>
     </div>
   );
 }
-function date(value: Date) {
-  return value.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
-const eventCopy: Record<
-  string,
-  { title: string; description: string; icon: string; tone: string }
-> = {
-  SHIPMENT_REQUEST_CREATED: {
-    title: "Shipment request received",
-    description:
-      "Atlas created a secure intake record from the original request.",
-    icon: "+",
-    tone: "blue",
-  },
-  MOCK_EXTRACTION_COMPLETED: {
-    title: "Atlas completed its analysis",
-    description:
-      "Shipment facts were extracted and missing information was surfaced.",
-    icon: "✦",
-    tone: "violet",
-  },
-  REVISION_CORRECTED: {
-    title: "Shipment details reviewed",
-    description:
-      "A human operator corrected the data and saved an immutable revision.",
-    icon: "✓",
-    tone: "blue",
-  },
-  APPROVAL_ACCEPTED: {
-    title: "Exact revision approved",
-    description: "Revision 2 was approved by Demo Approver.",
-    icon: "✓",
-    tone: "green",
-  },
-  DRAFT_LOAD_CREATED: {
-    title: "Draft load created",
-    description: "Atlas created the operational load without partial records.",
-    icon: "▰",
-    tone: "green",
-  },
-  STOPS_CREATED: {
-    title: "Pickup and delivery created",
-    description: "Two sequenced stops were added to the route.",
-    icon: "↗",
-    tone: "green",
-  },
-  LOAD_STATUS_INITIALIZED: {
-    title: "Load is ready for execution",
-    description:
-      "The load entered Draft status and is ready for carrier assignment.",
-    icon: "●",
-    tone: "green",
-  },
-};
-function MissionEvent({
-  event,
-  index,
-  last,
+function MoneyCard({
+  title,
+  status,
+  total,
+  children,
 }: {
-  event: LoadView["audits"][number];
-  index: number;
-  last: boolean;
+  title: string;
+  status: string;
+  total: number;
+  children: React.ReactNode;
 }) {
-  const copy = eventCopy[event.action] ?? {
-    title: event.action.replaceAll("_", " "),
-    description: event.entityType,
-    icon: "·",
-    tone: "slate",
-  };
   return (
-    <div className={`mission-event ${last ? "latest" : ""}`}>
-      <div className="event-rail">
-        <span className={copy.tone}>{copy.icon}</span>
-        <i />
-      </div>
-      <div className="event-card">
-        <div>
-          <h3>{copy.title}</h3>
-          <p>{copy.description}</p>
-        </div>
-        <time>
-          {index === 0 ? "10:02 AM" : `10:0${index + 2} AM`}
-          <small>Today</small>
-        </time>
-        {last && <b className="latest-tag">Latest</b>}
-        <details>
-          <summary>Event details</summary>
-          <code>
-            {event.action} · {event.entityType}
-          </code>
-        </details>
-      </div>
-    </div>
+    <section className="panel ready-actions">
+      <h2>{title}</h2>
+      <p>
+        <strong>{status.replaceAll("_", " ")}</strong> · $
+        {(total / 100).toFixed(2)}
+      </p>
+      {children}
+    </section>
   );
-}
-function demoLoadView(slug: string, id: string): LoadView | undefined {
-  if (slug !== DEMO_ORGANIZATION.slug) return undefined;
-  return getDemoLoad(id);
-}
-async function stagingLoadView(
-  slug: string,
-  id: string,
-): Promise<StagingLoadOperationsView | undefined> {
-  if (!z.string().uuid().safeParse(id).success) return undefined;
-  const { userId, membership, roles } = await requireStagingWorkspace(slug);
-  const organizationId = membership.organizationId;
-  const load = await prisma.load.findUnique({
-    where: { organizationId_id: { organizationId, id } },
-    include: {
-      customer: true,
-      primaryOwner: true,
-      stops: { orderBy: { sequence: "asc" } },
-      carrierCandidates: { orderBy: { createdAt: "asc" } },
-      driverAssignment: true,
-      trackingUpdates: { orderBy: { occurredAt: "desc" } },
-      communications: { orderBy: { occurredAt: "desc" } },
-      tasks: { include: { assignee: true }, orderBy: { createdAt: "desc" } },
-      routeSnapshots: {
-        where: { status: "CURRENT" },
-        orderBy: { calculatedAt: "desc" },
-        take: 1,
-      },
-      shipmentRequest: {
-        include: { quotes: { orderBy: { createdAt: "asc" } } },
-      },
-    },
-  });
-  if (!load) return undefined;
-  const members = await prisma.organizationMembership.findMany({
-    where: {
-      organizationId,
-      status: "ACTIVE",
-      user: { active: true },
-    },
-    include: { user: true },
-    orderBy: { user: { name: "asc" } },
-  });
-  const facilities = await prisma.facility.findMany({
-    where: { organizationId, status: "ACTIVE" },
-    select: { id: true, name: true, city: true, state: true },
-    orderBy: { name: "asc" },
-  });
-  const audits = await prisma.auditEvent.findMany({
-    where: {
-      organizationId,
-      OR: [
-        { entityType: "Load", entityId: id },
-        {
-          entityType: "CarrierCandidate",
-          entityId: {
-            in: load.carrierCandidates.map((candidate) => candidate.id),
-          },
-        },
-      ],
-    },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
-  const roleNames = new Set(roles);
-  const route = load.routeSnapshots[0];
-  return {
-    id: load.id,
-    requestId: load.shipmentRequestId,
-    currentUserId: userId,
-    number: load.loadNumber,
-    status: load.status,
-    customer: load.customer.name,
-    commodity: load.commodity,
-    weight: load.weightPounds,
-    equipment: load.equipmentType,
-    owner: load.primaryOwner?.name ?? "Unassigned",
-    nextAction: load.nextAction ?? "Review load readiness",
-    members: members.map((item) => ({ id: item.userId, name: item.user.name })),
-    facilities,
-    pickup: load.pickupDate,
-    delivery: load.deliveryDate,
-    stops: load.stops.map((stop) => ({
-      id: stop.id,
-      type: stop.type,
-      sequence: stop.sequence,
-      facility: stop.facilityName,
-      city: stop.city,
-      state: stop.state,
-      postalCode: stop.postalCode,
-      start: stop.appointmentStart,
-      end: stop.appointmentEnd,
-      confirmed: stop.appointmentConfirmedAt,
-      instructions: stop.instructions,
-      timeZone: stop.timeZone,
-    })),
-    route: route
-      ? {
-          distanceMeters: route.distanceMeters,
-        }
-      : undefined,
-    candidates: load.carrierCandidates.map((candidate) => ({
-      id: candidate.id,
-      name: candidate.carrierName,
-      status: candidate.status,
-      authority: candidate.authorityConfirmed,
-      insurance: candidate.insuranceConfirmed,
-      cost:
-        candidate.quotedCostCents === null
-          ? undefined
-          : Number(candidate.quotedCostCents),
-      reason: candidate.blockReason ?? undefined,
-      coverage:
-        candidate.cargoCoverageCents === null
-          ? undefined
-          : Number(candidate.cargoCoverageCents),
-    })),
-    driver: load.driverAssignment
-      ? {
-          name: load.driverAssignment.driverName,
-          phone: load.driverAssignment.driverPhone ?? undefined,
-          dispatcher: load.driverAssignment.dispatcherName,
-          dispatcherPhone: load.driverAssignment.dispatcherPhone ?? undefined,
-          tractor: load.driverAssignment.tractorNumber ?? undefined,
-          trailer: load.driverAssignment.trailerNumber ?? undefined,
-        }
-      : undefined,
-    tracking: load.trackingUpdates.map((item) => ({
-      id: item.id,
-      status: item.status,
-      location: item.location ?? undefined,
-      occurredAt: item.occurredAt,
-      notes: item.notes ?? undefined,
-    })),
-    communications: load.communications.map((item) => ({
-      id: item.id,
-      channel: item.channel,
-      party: item.partyName,
-      direction: item.direction,
-      summary: item.summary,
-      occurredAt: item.occurredAt,
-    })),
-    tasks: load.tasks.map((task) => ({
-      id: task.id,
-      title: task.title,
-      status: task.status,
-      assignee: task.assignee.name,
-      dueAt: task.dueAt,
-    })),
-    audits: audits.map((event) => ({
-      id: event.id,
-      action: event.action,
-      entityType: event.entityType,
-      createdAt: event.createdAt,
-    })),
-    quotes: load.shipmentRequest.quotes.map((quote) => ({
-      id: quote.id,
-      status: quote.status,
-      amount: Number(quote.amountCents),
-      currency: quote.currency,
-      assumptions: quote.assumptions ?? undefined,
-      createdById: quote.createdById,
-    })),
-    canViewCommercials: roleNames.has("APPROVER") || roleNames.has("OPERATOR"),
-    canManageLoad: roleNames.has("APPROVER") || roleNames.has("OPERATOR"),
-    canManageQuotes: roleNames.has("APPROVER"),
-    canApprove: roleNames.has("APPROVER"),
-  };
 }
