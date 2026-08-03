@@ -212,18 +212,24 @@ export async function acceptReadyQuote(form: FormData) {
         palletCount: quote.palletCount,
         specialInstructions: quote.specialInstructions,
         customerPriceCents: quote.amountCents,
-        stops: {
-          create: [
-            addressStop(ctx.organizationId, "PICKUP", 1, ready.pickupAddress),
-            addressStop(
-              ctx.organizationId,
-              "DELIVERY",
-              2,
-              ready.deliveryAddress,
-            ),
-          ],
-        },
       },
+    });
+    await tx.loadStop.createMany({
+      data: [
+        {
+          ...addressStop(ctx.organizationId, "PICKUP", 1, ready.pickupAddress),
+          loadId: created.id,
+        },
+        {
+          ...addressStop(
+            ctx.organizationId,
+            "DELIVERY",
+            2,
+            ready.deliveryAddress,
+          ),
+          loadId: created.id,
+        },
+      ],
     });
     await tx.quote.update({
       where: { id: quote.id },
