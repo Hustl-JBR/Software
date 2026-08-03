@@ -9,6 +9,12 @@ export default async function QuotePage({
   params: Promise<{ slug: string; id: string }>;
 }) {
   const { slug, id } = await params;
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      id,
+    )
+  )
+    notFound();
   const { membership } = await requireStagingWorkspace(slug);
   const quote = await prisma.quote.findFirst({
     where: { id, organizationId: membership.organizationId },

@@ -25,6 +25,12 @@ export default async function LoadPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const { slug, id } = await params;
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      id,
+    )
+  )
+    notFound();
   const requested = (await searchParams).tab;
   const tab = tabs.includes(requested as never) ? requested! : "overview";
   const { membership } = await requireStagingWorkspace(slug);
