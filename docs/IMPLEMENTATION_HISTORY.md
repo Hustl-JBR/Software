@@ -1,5 +1,13 @@
 # Implementation history
 
+## 2026-08-03: Quote-to-load address validation incident fix
+
+- Reproduced the staging `load_stops_state_check` failure caused by parsing one free-form quote address immediately before `loadStop.createMany()`.
+- Replaced new-quote free-form pickup and delivery addresses with explicit required street, city, two-letter state, and US ZIP inputs with browser constraints and shared server validation.
+- Blocked incomplete stored addresses before the load transaction, returning an operator-facing correction message instead of an HTTP 500.
+- Added exact missing-field diagnostics and an audited correction form for existing quotes while preserving the original quote when validation fails.
+- Added focused regression coverage for the reported street-only pickup, missing pickup/delivery state, missing city, missing ZIP, and successful complete-address conversion input.
+
 ## 2026-08-02: Ready Operations complete internal lifecycle
 
 - Replaced the visible Atlas direction with Ready Operations while preserving stable internal and infrastructure identifiers.

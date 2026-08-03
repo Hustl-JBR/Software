@@ -6,10 +6,13 @@ import { createReadyQuote } from "../ready-actions";
 
 export default async function QuotesPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ addressError?: string }>;
 }) {
   const { slug } = await params;
+  const { addressError } = await searchParams;
   if (isDemoMode())
     return (
       <div className="ready-page">
@@ -37,6 +40,11 @@ export default async function QuotesPage({
           <p>Price, send, record acceptance, then create the load.</p>
         </div>
       </header>
+      {addressError && (
+        <div className="alert error" role="alert">
+          {addressError}
+        </div>
+      )}
       <details className="panel ready-form-panel" open={quotes.length === 0}>
         <summary>New quote request</summary>
         <form action={createReadyQuote} className="ready-form">
@@ -60,22 +68,80 @@ export default async function QuotesPage({
             Contact email
             <input type="email" name="contactEmail" />
           </label>
-          <label className="wide">
-            Pickup address
-            <input
-              name="pickupAddress"
-              placeholder="Street, City, ST ZIP"
-              required
-            />
-          </label>
-          <label className="wide">
-            Delivery address
-            <input
-              name="deliveryAddress"
-              placeholder="Street, City, ST ZIP"
-              required
-            />
-          </label>
+          <fieldset className="ready-address-fields">
+            <legend>Pickup address — all fields required</legend>
+            <label className="wide">
+              Street address
+              <input
+                name="pickupAddressLine1"
+                autoComplete="address-line1"
+                required
+              />
+            </label>
+            <label>
+              City
+              <input name="pickupCity" autoComplete="address-level2" required />
+            </label>
+            <label>
+              State (2 letters)
+              <input
+                name="pickupState"
+                autoComplete="address-level1"
+                maxLength={2}
+                pattern="[A-Za-z]{2}"
+                required
+              />
+            </label>
+            <label>
+              ZIP
+              <input
+                name="pickupPostalCode"
+                autoComplete="postal-code"
+                inputMode="numeric"
+                pattern="[0-9]{5}(-[0-9]{4})?"
+                required
+              />
+            </label>
+          </fieldset>
+          <fieldset className="ready-address-fields">
+            <legend>Delivery address — all fields required</legend>
+            <label className="wide">
+              Street address
+              <input
+                name="deliveryAddressLine1"
+                autoComplete="address-line1"
+                required
+              />
+            </label>
+            <label>
+              City
+              <input
+                name="deliveryCity"
+                autoComplete="address-level2"
+                required
+              />
+            </label>
+            <label>
+              State (2 letters)
+              <input
+                name="deliveryState"
+                autoComplete="address-level1"
+                maxLength={2}
+                pattern="[A-Za-z]{2}"
+                required
+              />
+            </label>
+            <label>
+              ZIP
+              <input
+                name="deliveryPostalCode"
+                autoComplete="postal-code"
+                inputMode="numeric"
+                pattern="[0-9]{5}(-[0-9]{4})?"
+                required
+              />
+            </label>
+          </fieldset>
           <label>
             Pickup date
             <input type="date" name="pickupDate" required />

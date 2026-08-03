@@ -1,6 +1,10 @@
 # Current state
 
-Last updated: 2026-08-02. All former stacked PRs are merged. Active implementation branch: `codex/ready-operations`, based on merged `main` commit `373397d`.
+Last updated: 2026-08-03. All former stacked PRs and the Ready Operations replacement are merged. Active incident-fix branch: `agent/fix-quote-address-validation`, based on merged `main` commit `f193a78`.
+
+## Quote address conversion guard
+
+The live quote-to-load conversion now requires explicit pickup and delivery street, city, two-letter state, and US ZIP fields. The browser marks every field required and applies state/ZIP patterns; the server independently validates stored quote addresses before starting load creation. Existing incomplete quotes list each missing or invalid pickup/delivery field and provide an address-correction form without discarding the quote. An incomplete address redirects back to the quote with a clear operator message and never reaches `loadStop.createMany()`.
 
 ## Ready Operations replacement
 

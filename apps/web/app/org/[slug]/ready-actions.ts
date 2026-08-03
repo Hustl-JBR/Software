@@ -6,6 +6,15 @@ import { redirect } from "next/navigation";
 import { prisma } from "@atlas/db/client";
 import { requireStagingWorkspace } from "@/lib/staging-workspace";
 import { parseUsdToCents } from "@/lib/currency";
+import {
+  completeReadyAddress,
+  formatStoredReadyAddress,
+  parseStoredReadyAddress,
+  readyAddressError,
+  validateReadyAddress,
+  type CompleteReadyAddress,
+  type ReadyAddressKind,
+} from "@/lib/ready-address";
 
 function text(form: FormData, key: string) {
   return String(form.get(key) ?? "").trim();
@@ -69,6 +78,27 @@ export async function createCustomer(form: FormData) {
 
 export async function createReadyQuote(form: FormData) {
   const ctx = await actor(form);
+  const pickupAddress = validateReadyAddress(
+    "pickup",
+    readyAddressFromForm(form, "pickup"),
+  );
+  const deliveryAddress = validateReadyAddress(
+    "delivery",
+    readyAddressFromForm(form, "delivery"),
+  );
+  const addressError = readyAddressError([pickupAddress, deliveryAddress]);
+  if (addressError)
+    redirect(
+      `/org/${ctx.slug}/quotes?addressError=${encodeURIComponent(addressError)}`,
+    );
+  const completePickup = completeReadyAddress(pickupAddress);
+  const completeDelivery = completeReadyAddress(deliveryAddress);
+  if (!completePickup || !completeDelivery)
+    redirect(
+      `/org/${ctx.slug}/quotes?addressError=${encodeURIComponent("Complete the pickup and delivery addresses before creating the quote.")}`,
+    );
+  const storedPickupAddress = formatStoredReadyAddress(completePickup);
+  const storedDeliveryAddress = formatStoredReadyAddress(completeDelivery);
   const customerId = text(form, "customerId");
   const customer = await prisma.customer.findFirstOrThrow({
     where: { id: customerId, organizationId: ctx.organizationId },
@@ -88,8 +118,8 @@ export async function createReadyQuote(form: FormData) {
         structuredData: {
           customerId,
           customerName: customer.name,
-          pickupAddress: text(form, "pickupAddress"),
-          deliveryAddress: text(form, "deliveryAddress"),
+          pickupAddress: storedPickupAddress,
+          deliveryAddress: storedDeliveryAddress,
         },
         extractionMetadata: { source: "manual" },
         validationResults: { valid: true },
@@ -107,8 +137,8 @@ export async function createReadyQuote(form: FormData) {
         quoteNumber: `RFQ-${String(count + 1).padStart(5, "0")}`,
         contactName: text(form, "contactName") || customer.contactName,
         contactEmail: text(form, "contactEmail") || customer.contactEmail,
-        pickupAddress: text(form, "pickupAddress"),
-        deliveryAddress: text(form, "deliveryAddress"),
+        pickupAddress: storedPickupAddress,
+        deliveryAddress: storedDeliveryAddress,
         pickupDate,
         deliveryDate,
         equipmentType: text(form, "equipmentType"),
@@ -167,7 +197,8 @@ export async function acceptReadyQuote(form: FormData) {
       },
     },
   });
-  const data = quote.shipmentRequest.revisions[0]?.structuredData as {
+  const revision = quote.shipmentRequest.revisions[0];
+  const data = revision?.structuredData as {
     customerId?: string;
   };
   if (
@@ -178,16 +209,38 @@ export async function acceptReadyQuote(form: FormData) {
     !quote.deliveryAddress ||
     !quote.equipmentType ||
     !quote.commodity ||
-    !quote.weightPounds
+    !quote.weightPounds ||
+    !revision
   )
     throw new Error("QUOTE_INCOMPLETE");
-  const revision = quote.shipmentRequest.revisions[0];
+  const pickupValidation = validateReadyAddress(
+    "pickup",
+    parseStoredReadyAddress(quote.pickupAddress),
+  );
+  const deliveryValidation = validateReadyAddress(
+    "delivery",
+    parseStoredReadyAddress(quote.deliveryAddress),
+  );
+  const addressError = readyAddressError([
+    pickupValidation,
+    deliveryValidation,
+  ]);
+  if (addressError)
+    redirect(
+      `/org/${ctx.slug}/quotes/${quote.id}?addressError=${encodeURIComponent(addressError)}`,
+    );
+  const pickupAddress = completeReadyAddress(pickupValidation);
+  const deliveryAddress = completeReadyAddress(deliveryValidation);
+  if (!pickupAddress || !deliveryAddress)
+    redirect(
+      `/org/${ctx.slug}/quotes/${quote.id}?addressError=${encodeURIComponent("Complete the pickup and delivery addresses before creating the load.")}`,
+    );
   const ready = {
     customerId: data.customerId,
     pickupDate: quote.pickupDate,
     deliveryDate: quote.deliveryDate,
-    pickupAddress: quote.pickupAddress,
-    deliveryAddress: quote.deliveryAddress,
+    pickupAddress,
+    deliveryAddress,
     equipmentType: quote.equipmentType,
     commodity: quote.commodity,
     weightPounds: quote.weightPounds,
@@ -261,19 +314,82 @@ function addressStop(
   organizationId: string,
   type: "PICKUP" | "DELIVERY",
   sequence: number,
-  address: string,
+  address: CompleteReadyAddress,
 ) {
-  const parts = address.split(",").map((part) => part.trim());
   return {
     organizationId,
     type,
     sequence,
     facilityName: type === "PICKUP" ? "Pickup" : "Delivery",
-    addressLine1: parts[0] || address,
-    city: parts[1] || "",
-    state: (parts[2] || "").split(" ")[0] || "",
-    postalCode: (parts[2] || "").split(" ")[1] || "",
+    addressLine1: address.addressLine1,
+    city: address.city,
+    state: address.state,
+    postalCode: address.postalCode,
     validationStatus: "MANUALLY_CONFIRMED" as const,
+  };
+}
+
+export async function updateReadyQuoteAddresses(form: FormData) {
+  const ctx = await actor(form);
+  const quoteId = text(form, "quoteId");
+  const pickupValidation = validateReadyAddress(
+    "pickup",
+    readyAddressFromForm(form, "pickup"),
+  );
+  const deliveryValidation = validateReadyAddress(
+    "delivery",
+    readyAddressFromForm(form, "delivery"),
+  );
+  const addressError = readyAddressError([
+    pickupValidation,
+    deliveryValidation,
+  ]);
+  if (addressError)
+    redirect(
+      `/org/${ctx.slug}/quotes/${quoteId}?addressError=${encodeURIComponent(addressError)}`,
+    );
+  const pickupAddress = completeReadyAddress(pickupValidation);
+  const deliveryAddress = completeReadyAddress(deliveryValidation);
+  if (!pickupAddress || !deliveryAddress)
+    redirect(
+      `/org/${ctx.slug}/quotes/${quoteId}?addressError=${encodeURIComponent("Complete the pickup and delivery addresses before creating the load.")}`,
+    );
+  const result = await prisma.quote.updateMany({
+    where: {
+      id: quoteId,
+      organizationId: ctx.organizationId,
+      status: { not: "ACCEPTED" },
+    },
+    data: {
+      pickupAddress: formatStoredReadyAddress(pickupAddress),
+      deliveryAddress: formatStoredReadyAddress(deliveryAddress),
+    },
+  });
+  if (result.count !== 1) throw new Error("QUOTE_NOT_EDITABLE");
+  await prisma.auditEvent.create({
+    data: {
+      organizationId: ctx.organizationId,
+      actorType: "USER",
+      actorId: ctx.userId,
+      action: "QUOTE_ADDRESSES_UPDATED",
+      entityType: "Quote",
+      entityId: quoteId,
+      afterState: {
+        pickupAddress: formatStoredReadyAddress(pickupAddress),
+        deliveryAddress: formatStoredReadyAddress(deliveryAddress),
+      },
+      correlationId: randomUUID(),
+    },
+  });
+  redirect(`/org/${ctx.slug}/quotes/${quoteId}?addressSaved=1`);
+}
+
+function readyAddressFromForm(form: FormData, kind: ReadyAddressKind) {
+  return {
+    addressLine1: text(form, `${kind}AddressLine1`),
+    city: text(form, `${kind}City`),
+    state: text(form, `${kind}State`),
+    postalCode: text(form, `${kind}PostalCode`),
   };
 }
 

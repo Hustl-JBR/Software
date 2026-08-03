@@ -41,11 +41,17 @@ test("create customer, price and accept a quote, then open the uncovered load", 
     .locator('select[name="customerId"]')
     .selectOption({ label: customerName });
   await quoteDetails
-    .locator('input[name="pickupAddress"]')
-    .fill("100 Ready Way, Atlanta, GA 30303");
+    .locator('input[name="pickupAddressLine1"]')
+    .fill("100 Ready Way");
+  await quoteDetails.locator('input[name="pickupCity"]').fill("Atlanta");
+  await quoteDetails.locator('input[name="pickupState"]').fill("GA");
+  await quoteDetails.locator('input[name="pickupPostalCode"]').fill("30303");
   await quoteDetails
-    .locator('input[name="deliveryAddress"]')
-    .fill("200 Freight Ave, Charlotte, NC 28202");
+    .locator('input[name="deliveryAddressLine1"]')
+    .fill("200 Freight Ave");
+  await quoteDetails.locator('input[name="deliveryCity"]').fill("Charlotte");
+  await quoteDetails.locator('input[name="deliveryState"]').fill("NC");
+  await quoteDetails.locator('input[name="deliveryPostalCode"]').fill("28202");
   await quoteDetails.locator('input[name="pickupDate"]').fill("2026-08-10");
   await quoteDetails.locator('input[name="deliveryDate"]').fill("2026-08-12");
   await quoteDetails
