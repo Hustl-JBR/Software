@@ -5,7 +5,7 @@ test.skip(
   "Persistent staging-mode workspace coverage.",
 );
 
-test("authenticated staging shell exposes real workspace routes and honest inactive states", async ({
+test("authenticated staging shell exposes Ready Operations owner workflows", async ({
   page,
 }) => {
   const password = process.env.ATLAS_DEVELOPMENT_SEED_PASSWORD;
@@ -16,19 +16,17 @@ test("authenticated staging shell exposes real workspace routes and honest inact
   await page.getByRole("button", { name: "Continue securely" }).click();
   await page.waitForURL("**/org/atlas-north");
   await expect(
-    page.getByRole("heading", { name: "Good morning, Avery." }),
+    page.getByRole("heading", { name: "Today", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".app-shell > .sidebar .demo-label")).toHaveText(
     "STAGING · POSTGRESQL",
   );
   const routes = [
-    ["/operations", "Operations"],
-    ["/org/atlas-north", "Good morning, Avery."],
+    ["/org/atlas-north", "Today"],
+    ["/org/atlas-north/quotes", "Quotes"],
     ["/org/atlas-north/loads", "Loads"],
-    ["/org/atlas-north/tracking", "Global tracking"],
-    ["/org/atlas-north/network", "Network"],
-    ["/org/atlas-north/analytics", "Analytics"],
-    ["/org/atlas-north/documents", "Documents"],
+    ["/org/atlas-north/companies", "Companies"],
+    ["/org/atlas-north/money", "Money"],
     ["/org/atlas-north/settings", "Settings"],
   ] as const;
   for (const [path, heading] of routes) {
@@ -40,10 +38,8 @@ test("authenticated staging shell exposes real workspace routes and honest inact
       "STAGING · POSTGRESQL",
     );
   }
-  await page.goto("/org/atlas-north/documents");
-  await expect(page.getByText("Document storage is not active")).toBeVisible();
-  await page.goto("/org/atlas-north/tracking");
-  await expect(page.getByText("GPS provider not connected")).toBeVisible();
+  await expect(page.getByText("READY OPERATIONS").first()).toBeVisible();
+  await expect(page.getByText("Google", { exact: false })).toHaveCount(0);
 
   await expect(
     page.locator(".sidebar").getByRole("link", { name: /staging tools/i }),
