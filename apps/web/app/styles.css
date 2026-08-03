@@ -212,6 +212,22 @@
 .ready-form .wide {
   grid-column: span 2;
 }
+.ready-address-fields {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 2fr 1.25fr 0.6fr 0.85fr;
+  gap: 12px;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.ready-address-fields legend {
+  padding: 0 6px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 750;
+}
 .ready-form label,
 .ready-actions label {
   display: grid;
@@ -351,6 +367,9 @@
   .ready-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .ready-address-fields {
+    grid-template-columns: 1fr 1fr;
+  }
   .ready-load-facts {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -367,6 +386,9 @@
   }
   .ready-form .wide {
     grid-column: auto;
+  }
+  .ready-address-fields {
+    grid-template-columns: 1fr;
   }
   .ready-load-facts,
   .ready-metrics {
