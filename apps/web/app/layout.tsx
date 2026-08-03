@@ -9,8 +9,8 @@ import { signOut } from "@/app/actions";
 import "./styles.css";
 
 export const metadata = {
-  title: "Project Atlas",
-  description: "Human-reviewed freight operations",
+  title: "Ready Operations",
+  description: "Internal operating system for Ready Freight",
 };
 
 export default async function RootLayout({
@@ -34,7 +34,7 @@ export default async function RootLayout({
       ? 12
       : undefined;
   const profile = demo
-    ? { name: "Demo Approver", organization: "Atlas North", initials: "DA" }
+    ? { name: "Demo Owner", organization: "Ready Freight", initials: "RF" }
     : membership
       ? {
           name: membership.user.name,
@@ -62,8 +62,8 @@ export default async function RootLayout({
           <aside className="sidebar">
             <div className="sidebar-top">
               <Link className="brand" href={commandHref}>
-                <span className="brand-mark">A</span>
-                <span className="brand-word">ATLAS</span>
+                <span className="brand-mark">R</span>
+                <span className="brand-word">READY OPERATIONS</span>
               </Link>
               <span className={`demo-label ${demo ? "" : "staging-label"}`}>
                 {demo ? "DEMO" : "STAGING · POSTGRESQL"}
@@ -96,12 +96,13 @@ export default async function RootLayout({
           <div className="workspace">
             <header className="topbar">
               <div className="global-search" aria-label="Search availability">
-                ⌕ <span>Search loads, customers, lanes…</span>
+                ⌕ <span>Search quotes, loads, companies…</span>
                 <kbd>Ctrl K</kbd>
               </div>
               <div className="topbar-actions">
                 <span className="system-status">
-                  <i /> {demo ? "Demo systems ready" : "Atlas systems online"}
+                  <i />{" "}
+                  {demo ? "Ready Freight demo" : "Ready Operations online"}
                 </span>
                 <button
                   className="icon-button"

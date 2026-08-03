@@ -254,8 +254,183 @@ async function main() {
     if (!(error instanceof Error) || error.message !== "NOT_FOUND") throw error;
   }
 
+  // Exercise the complete Ready Operations lifecycle against the deployed schema.
+  const readyCarrier = await prisma.carrier.upsert({
+    where: {
+      organizationId_legalName: {
+        organizationId: organization.id,
+        legalName: "Ready Verification Transport",
+      },
+    },
+    update: {
+      reviewStatus: "APPROVED",
+      insuranceExpiration: new Date("2027-12-31"),
+    },
+    create: {
+      organizationId: organization.id,
+      legalName: "Ready Verification Transport",
+      mcNumber: "MC-VERIFY",
+      usdotNumber: "USDOT-VERIFY",
+      contactName: "Verification Dispatcher",
+      reviewStatus: "APPROVED",
+      insuranceExpiration: new Date("2027-12-31"),
+    },
+  });
+  const lifecycleQuote = await prisma.quote.findFirst({
+    where: { organizationId: organization.id, shipmentRequestId: requestId },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!lifecycleQuote) throw new Error("Ready lifecycle quote is missing");
+  await prisma.quote.update({
+    where: { id: lifecycleQuote.id },
+    data: {
+      status: "SENT",
+      sentAt: new Date(),
+      quoteNumber: lifecycleQuote.quoteNumber || "RFQ-VERIFY",
+      pickupAddress: "100 Test Way, Atlanta, GA 30303",
+      deliveryAddress: "200 Review Ave, Charlotte, NC 28202",
+      pickupDate: new Date("2026-08-03"),
+      deliveryDate: new Date("2026-08-05"),
+      equipmentType: "53' Dry Van",
+      commodity: syntheticShipment.commodity,
+      weightPounds: syntheticShipment.weightPounds,
+      estimatedCarrierCostCents: 218000n,
+    },
+  });
+  await prisma.quote.update({
+    where: { id: lifecycleQuote.id },
+    data: {
+      status: "ACCEPTED",
+      acceptedAt: new Date(),
+      acceptanceEvidence: "Automated staging lifecycle verification",
+    },
+  });
+  await prisma.load.update({
+    where: { id: loadId },
+    data: {
+      status: "UNCOVERED",
+      customerPriceCents: lifecycleQuote.amountCents,
+      estimatedMileage: 245,
+      datPostedAt: new Date(),
+      datPostingReference: "DAT-VERIFY",
+      carrierId: readyCarrier.id,
+      carrierCostCents: 218000n,
+    },
+  });
+  await prisma.load.update({
+    where: { id: loadId },
+    data: { status: "BOOKED" },
+  });
+  for (const type of [
+    "RATE_CONFIRMATION",
+    "SIGNED_RATE_CONFIRMATION",
+  ] as const) {
+    const exists = await prisma.loadDocument.findFirst({
+      where: { organizationId: organization.id, loadId, type },
+    });
+    if (!exists)
+      await prisma.loadDocument.create({
+        data: {
+          organizationId: organization.id,
+          loadId,
+          type,
+          fileName: `${type.toLowerCase()}.pdf`,
+          mimeType: "application/pdf",
+          content: Buffer.from("Synthetic verification document"),
+          uploadedById: alexId,
+        },
+      });
+  }
+  for (const status of [
+    "DISPATCHED",
+    "AT_PICKUP",
+    "IN_TRANSIT",
+    "AT_DELIVERY",
+    "DELIVERED",
+  ] as const) {
+    await prisma.load.update({
+      where: { id: loadId },
+      data: {
+        status,
+        deliveredAt: status === "DELIVERED" ? new Date() : undefined,
+        deliveryReceiver:
+          status === "DELIVERED" ? "Verification Receiver" : undefined,
+      },
+    });
+    await prisma.trackingUpdate.create({
+      data: {
+        organizationId: organization.id,
+        loadId,
+        status,
+        occurredAt: new Date(),
+        notes: "Ready Operations lifecycle verification",
+      },
+    });
+  }
+  const pod = await prisma.loadDocument.findFirst({
+    where: { organizationId: organization.id, loadId, type: "POD" },
+  });
+  if (!pod)
+    await prisma.loadDocument.create({
+      data: {
+        organizationId: organization.id,
+        loadId,
+        type: "POD",
+        fileName: "verification-pod.pdf",
+        mimeType: "application/pdf",
+        content: Buffer.from("Synthetic POD"),
+        uploadedById: alexId,
+      },
+    });
+  await prisma.customerInvoice.upsert({
+    where: { loadId },
+    update: { status: "PAID", paidCents: lifecycleQuote.amountCents },
+    create: {
+      organizationId: organization.id,
+      loadId,
+      invoiceNumber: `INV-VERIFY-${loadId.slice(0, 6)}`,
+      freightChargeCents: lifecycleQuote.amountCents,
+      status: "PAID",
+      paidCents: lifecycleQuote.amountCents,
+      paymentTerms: "Net 30",
+    },
+  });
+  await prisma.carrierBill.upsert({
+    where: { loadId },
+    update: { status: "PAID", linehaulCents: 218000n, paidCents: 218000n },
+    create: {
+      organizationId: organization.id,
+      loadId,
+      carrierInvoiceNumber: "CINV-VERIFY",
+      status: "PAID",
+      linehaulCents: 218000n,
+      paidCents: 218000n,
+    },
+  });
+  await prisma.load.update({
+    where: { id: loadId },
+    data: { status: "COMPLETED" },
+  });
+  const verifiedLoad = await prisma.load.findFirstOrThrow({
+    where: { id: loadId, organizationId: organization.id },
+    include: {
+      carrier: true,
+      documents: true,
+      customerInvoice: true,
+      carrierBill: true,
+    },
+  });
+  if (
+    verifiedLoad.status !== "COMPLETED" ||
+    verifiedLoad.carrier?.reviewStatus !== "APPROVED" ||
+    !verifiedLoad.documents.some((document) => document.type === "POD") ||
+    verifiedLoad.customerInvoice?.status !== "PAID" ||
+    verifiedLoad.carrierBill?.status !== "PAID"
+  )
+    throw new Error("Ready Operations lifecycle verification failed");
+
   console.log(
-    `Staging verification passed: two sign-ins, shared organization access, cross-organization denial, persistence ${persistence}.`,
+    `Staging verification passed: full Ready Operations quote-to-completion lifecycle, two sign-ins, shared organization access, cross-organization denial, persistence ${persistence}.`,
   );
 }
 

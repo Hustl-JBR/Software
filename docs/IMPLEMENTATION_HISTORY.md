@@ -1,5 +1,13 @@
 # Implementation history
 
+## 2026-08-02: Ready Operations complete internal lifecycle
+
+- Replaced the visible Atlas direction with Ready Operations while preserving stable internal and infrastructure identifiers.
+- Reduced navigation to Today, Quotes, Loads, Companies, and Money and rebuilt Today around only four compact sections with explicit tasks.
+- Added persistent customers and carriers, quote PDF and acceptance conversion, manual DAT posting, reviewed carrier booking, rate-confirmation PDF and signed-copy dispatch gate, exact load statuses and flags, manual tracking, load documents, POD gating, draft invoices, carrier bills, payments, margin, and guarded completion.
+- Rebuilt load detail around Overview, Stops, Carrier, Updates, Documents, Money, and Activity. Active pages contain no Google/provider/routing setup or credential requirements.
+- Extended deployed verification to exercise the quote-to-completion lifecycle alongside authenticated shared-tenant and cross-tenant checks.
+
 ## 2026-08-02: Reviewable staging simplification
 
 - Renamed the command-center experience to Today and reduced primary navigation to Today, Quotes, Loads, Customers, Carriers, and Money, with Settings moved into the user menu.

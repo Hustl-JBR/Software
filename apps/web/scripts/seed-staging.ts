@@ -38,7 +38,7 @@ const people = [
 async function main() {
   if (process.env.SEED_STAGING_DATA !== "true") {
     throw new Error(
-      "Refusing to seed. Set SEED_STAGING_DATA=true for Atlas staging only.",
+      "Refusing to seed. Set SEED_STAGING_DATA=true for Ready Operations staging only.",
     );
   }
   const missing = people
@@ -52,8 +52,8 @@ async function main() {
 
   const organization = await prisma.organization.upsert({
     where: { slug: "atlas-staging" },
-    update: { name: "Project Atlas Staging" },
-    create: { slug: "atlas-staging", name: "Project Atlas Staging" },
+    update: { name: "Ready Freight" },
+    create: { slug: "atlas-staging", name: "Ready Freight" },
   });
 
   for (const person of people) {
@@ -130,7 +130,7 @@ async function main() {
     }
   }
   console.log(
-    "Seeded four synthetic Atlas staging accounts without printing credentials.",
+    "Seeded four synthetic Ready Operations staging accounts without printing credentials.",
   );
 }
 

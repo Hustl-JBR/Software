@@ -37,6 +37,15 @@ enum ApprovalStatus {
 
 enum LoadStatus {
   DRAFT
+  UNCOVERED
+  BOOKED
+  DISPATCHED
+  AT_PICKUP
+  IN_TRANSIT
+  AT_DELIVERY
+  DELIVERED
+  COMPLETED
+  CANCELLED
 }
 
 enum StopType {
@@ -80,7 +89,45 @@ enum IdempotencyStatus {
 enum QuoteStatus {
   DRAFT
   APPROVED
+  SENT
+  AWAITING_CUSTOMER
   ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum CarrierReviewStatus {
+  UNREVIEWED
+  APPROVED
+  DO_NOT_USE
+}
+
+enum DocumentType {
+  RATE_CONFIRMATION
+  SIGNED_RATE_CONFIRMATION
+  BOL
+  POD
+  CUSTOMER_INVOICE
+  CARRIER_INVOICE
+  LUMPER_RECEIPT
+  OTHER
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PARTIALLY_PAID
+  PAID
+  VOID
+}
+
+enum CarrierBillStatus {
+  MISSING
+  RECEIVED
+  UNDER_REVIEW
+  APPROVED
+  SCHEDULED
+  PAID
 }
 
 enum CarrierCandidateStatus {
@@ -129,6 +176,10 @@ model Organization {
   trackingUpdates    TrackingUpdate[]
   communicationLogs  CommunicationLog[]
   tasks              Task[]
+  carriers           Carrier[]
+  documents          LoadDocument[]
+  customerInvoices   CustomerInvoice[]
+  carrierBills       CarrierBill[]
   createdAt          DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@map("organizations")
@@ -242,6 +293,11 @@ model Customer {
   id             String       @id @default(uuid()) @db.Uuid
   organizationId String       @map("organization_id") @db.Uuid
   name           String
+  contactName    String?      @map("contact_name")
+  contactEmail   String?      @map("contact_email")
+  contactPhone   String?      @map("contact_phone")
+  billingAddress String?      @map("billing_address")
+  paymentTerms   String?      @map("payment_terms")
   organization   Organization @relation(fields: [organizationId], references: [id])
   loads          Load[]
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -287,24 +343,39 @@ model CustomerCall {
 }
 
 model Quote {
-  id                 String          @id @default(uuid()) @db.Uuid
-  organizationId     String          @map("organization_id") @db.Uuid
-  shipmentRequestId  String          @map("shipment_request_id") @db.Uuid
-  status             QuoteStatus     @default(DRAFT)
-  amountCents        BigInt          @map("amount_cents")
-  currency           String          @default("USD") @db.Char(3)
-  assumptions        String?
-  createdById        String          @map("created_by_id") @db.Uuid
-  approvedById       String?         @map("approved_by_id") @db.Uuid
-  approvedAt         DateTime?       @map("approved_at") @db.Timestamptz(6)
-  acceptedAt         DateTime?       @map("accepted_at") @db.Timestamptz(6)
-  acceptanceEvidence String?         @map("acceptance_evidence")
-  organization       Organization    @relation(fields: [organizationId], references: [id])
-  shipmentRequest    ShipmentRequest @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
-  createdBy          User            @relation("QuoteCreator", fields: [createdById], references: [id])
-  approvedBy         User?           @relation("QuoteApprover", fields: [approvedById], references: [id])
-  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                        String          @id @default(uuid()) @db.Uuid
+  organizationId            String          @map("organization_id") @db.Uuid
+  shipmentRequestId         String          @map("shipment_request_id") @db.Uuid
+  status                    QuoteStatus     @default(DRAFT)
+  amountCents               BigInt          @map("amount_cents")
+  currency                  String          @default("USD") @db.Char(3)
+  assumptions               String?
+  quoteNumber               String?         @map("quote_number")
+  contactName               String?         @map("contact_name")
+  contactEmail              String?         @map("contact_email")
+  pickupAddress             String?         @map("pickup_address")
+  deliveryAddress           String?         @map("delivery_address")
+  pickupDate                DateTime?       @map("pickup_date") @db.Date
+  deliveryDate              DateTime?       @map("delivery_date") @db.Date
+  equipmentType             String?         @map("equipment_type")
+  commodity                 String?
+  weightPounds              Int?            @map("weight_pounds")
+  palletCount               Int?            @map("pallet_count")
+  specialInstructions       String?         @map("special_instructions")
+  estimatedCarrierCostCents BigInt?         @map("estimated_carrier_cost_cents")
+  sentAt                    DateTime?       @map("sent_at") @db.Timestamptz(6)
+  expiresAt                 DateTime?       @map("expires_at") @db.Timestamptz(6)
+  createdById               String          @map("created_by_id") @db.Uuid
+  approvedById              String?         @map("approved_by_id") @db.Uuid
+  approvedAt                DateTime?       @map("approved_at") @db.Timestamptz(6)
+  acceptedAt                DateTime?       @map("accepted_at") @db.Timestamptz(6)
+  acceptanceEvidence        String?         @map("acceptance_evidence")
+  organization              Organization    @relation(fields: [organizationId], references: [id])
+  shipmentRequest           ShipmentRequest @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
+  createdBy                 User            @relation("QuoteCreator", fields: [createdById], references: [id])
+  approvedBy                User?           @relation("QuoteApprover", fields: [approvedById], references: [id])
+  createdAt                 DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@unique([organizationId, id])
   @@index([organizationId, shipmentRequestId])
@@ -371,41 +442,144 @@ model ApprovalRequest {
 }
 
 model Load {
-  id                 String                  @id @default(uuid()) @db.Uuid
-  organizationId     String                  @map("organization_id") @db.Uuid
-  shipmentRequestId  String                  @unique @map("shipment_request_id") @db.Uuid
-  approvedRevisionId String                  @unique @map("approved_revision_id") @db.Uuid
-  customerId         String                  @map("customer_id") @db.Uuid
-  loadNumber         String                  @map("load_number")
-  status             LoadStatus              @default(DRAFT)
-  primaryOwnerId     String?                 @map("primary_owner_id") @db.Uuid
-  nextAction         String?                 @map("next_action")
-  commodity          String
-  weightPounds       Int                     @map("weight_pounds")
-  equipmentType      String                  @map("equipment_type")
-  equipmentDetail    String?                 @map("equipment_detail")
-  pickupDate         DateTime                @map("pickup_date") @db.Date
-  deliveryDate       DateTime                @map("delivery_date") @db.Date
-  organization       Organization            @relation(fields: [organizationId], references: [id])
-  shipmentRequest    ShipmentRequest         @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
-  approvedRevision   ShipmentRequestRevision @relation(fields: [organizationId, approvedRevisionId], references: [organizationId, id])
-  customer           Customer                @relation(fields: [organizationId, customerId], references: [organizationId, id])
-  primaryOwner       User?                   @relation("LoadOwner", fields: [primaryOwnerId], references: [id])
-  stops              LoadStop[]
-  routeSnapshots     RouteSnapshot[]
-  statusHistory      LoadStatusHistory[]
-  carrierCandidates  CarrierCandidate[]
-  driverAssignment   DriverAssignment?
-  trackingUpdates    TrackingUpdate[]
-  communications     CommunicationLog[]
-  tasks              Task[]
-  createdAt          DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                  String                  @id @default(uuid()) @db.Uuid
+  organizationId      String                  @map("organization_id") @db.Uuid
+  shipmentRequestId   String                  @unique @map("shipment_request_id") @db.Uuid
+  approvedRevisionId  String                  @unique @map("approved_revision_id") @db.Uuid
+  customerId          String                  @map("customer_id") @db.Uuid
+  loadNumber          String                  @map("load_number")
+  status              LoadStatus              @default(DRAFT)
+  primaryOwnerId      String?                 @map("primary_owner_id") @db.Uuid
+  nextAction          String?                 @map("next_action")
+  commodity           String
+  weightPounds        Int                     @map("weight_pounds")
+  equipmentType       String                  @map("equipment_type")
+  equipmentDetail     String?                 @map("equipment_detail")
+  pickupDate          DateTime                @map("pickup_date") @db.Date
+  deliveryDate        DateTime                @map("delivery_date") @db.Date
+  palletCount         Int?                    @map("pallet_count")
+  specialInstructions String?                 @map("special_instructions")
+  internalNotes       String?                 @map("internal_notes")
+  customerPriceCents  BigInt?                 @map("customer_price_cents")
+  carrierCostCents    BigInt?                 @map("carrier_cost_cents")
+  estimatedMileage    Int?                    @map("estimated_mileage")
+  datPostedAt         DateTime?               @map("dat_posted_at") @db.Timestamptz(6)
+  datPostingReference String?                 @map("dat_posting_reference")
+  delayed             Boolean                 @default(false)
+  onHold              Boolean                 @default(false) @map("on_hold")
+  exceptionDetails    String?                 @map("exception_details")
+  deliveredAt         DateTime?               @map("delivered_at") @db.Timestamptz(6)
+  deliveryReceiver    String?                 @map("delivery_receiver")
+  carrierId           String?                 @map("carrier_id") @db.Uuid
+  organization        Organization            @relation(fields: [organizationId], references: [id])
+  shipmentRequest     ShipmentRequest         @relation(fields: [organizationId, shipmentRequestId], references: [organizationId, id])
+  approvedRevision    ShipmentRequestRevision @relation(fields: [organizationId, approvedRevisionId], references: [organizationId, id])
+  customer            Customer                @relation(fields: [organizationId, customerId], references: [organizationId, id])
+  primaryOwner        User?                   @relation("LoadOwner", fields: [primaryOwnerId], references: [id])
+  stops               LoadStop[]
+  routeSnapshots      RouteSnapshot[]
+  statusHistory       LoadStatusHistory[]
+  carrierCandidates   CarrierCandidate[]
+  driverAssignment    DriverAssignment?
+  trackingUpdates     TrackingUpdate[]
+  communications      CommunicationLog[]
+  tasks               Task[]
+  carrier             Carrier?                @relation(fields: [organizationId, carrierId], references: [organizationId, id])
+  documents           LoadDocument[]
+  customerInvoice     CustomerInvoice?
+  carrierBill         CarrierBill?
+  createdAt           DateTime                @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@unique([organizationId, id])
   @@unique([organizationId, shipmentRequestId])
   @@unique([organizationId, approvedRevisionId])
   @@unique([organizationId, loadNumber])
   @@map("loads")
+}
+
+model Carrier {
+  id                  String              @id @default(uuid()) @db.Uuid
+  organizationId      String              @map("organization_id") @db.Uuid
+  legalName           String              @map("legal_name")
+  dbaName             String?             @map("dba_name")
+  mcNumber            String?             @map("mc_number")
+  usdotNumber         String?             @map("usdot_number")
+  contactName         String?             @map("contact_name")
+  contactEmail        String?             @map("contact_email")
+  contactPhone        String?             @map("contact_phone")
+  insuranceExpiration DateTime?           @map("insurance_expiration") @db.Date
+  reviewStatus        CarrierReviewStatus @default(UNREVIEWED) @map("review_status")
+  notes               String?
+  organization        Organization        @relation(fields: [organizationId], references: [id])
+  loads               Load[]
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, legalName])
+  @@map("carriers")
+}
+
+model LoadDocument {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  loadId         String       @map("load_id") @db.Uuid
+  type           DocumentType
+  fileName       String       @map("file_name")
+  mimeType       String       @map("mime_type")
+  content        Bytes
+  uploadedById   String       @map("uploaded_by_id") @db.Uuid
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  load           Load         @relation(fields: [organizationId, loadId], references: [organizationId, id], onDelete: Cascade)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([organizationId, id])
+  @@index([organizationId, loadId, type])
+  @@map("load_documents")
+}
+
+model CustomerInvoice {
+  id                 String        @id @default(uuid()) @db.Uuid
+  organizationId     String        @map("organization_id") @db.Uuid
+  loadId             String        @unique @map("load_id") @db.Uuid
+  invoiceNumber      String        @map("invoice_number")
+  status             InvoiceStatus @default(DRAFT)
+  freightChargeCents BigInt        @map("freight_charge_cents")
+  accessorialsCents  BigInt        @default(0) @map("accessorials_cents")
+  paymentTerms       String?       @map("payment_terms")
+  dueDate            DateTime?     @map("due_date") @db.Date
+  paidCents          BigInt        @default(0) @map("paid_cents")
+  sentAt             DateTime?     @map("sent_at") @db.Timestamptz(6)
+  organization       Organization  @relation(fields: [organizationId], references: [id])
+  load               Load          @relation(fields: [organizationId, loadId], references: [organizationId, id], onDelete: Cascade)
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, loadId])
+  @@unique([organizationId, invoiceNumber])
+  @@map("customer_invoices")
+}
+
+model CarrierBill {
+  id                   String            @id @default(uuid()) @db.Uuid
+  organizationId       String            @map("organization_id") @db.Uuid
+  loadId               String            @unique @map("load_id") @db.Uuid
+  carrierInvoiceNumber String?           @map("carrier_invoice_number")
+  status               CarrierBillStatus @default(MISSING)
+  linehaulCents        BigInt            @default(0) @map("linehaul_cents")
+  accessorialsCents    BigInt            @default(0) @map("accessorials_cents")
+  paidCents            BigInt            @default(0) @map("paid_cents")
+  dueDate              DateTime?         @map("due_date") @db.Date
+  notes                String?
+  organization         Organization      @relation(fields: [organizationId], references: [id])
+  load                 Load              @relation(fields: [organizationId, loadId], references: [organizationId, id], onDelete: Cascade)
+  createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, loadId])
+  @@map("carrier_bills")
 }
 
 model LoadStop {

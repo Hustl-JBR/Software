@@ -1,600 +1,199 @@
-import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { prisma } from "@atlas/db/client";
-import { getSessionUserId } from "@/lib/session";
-import { ErrorAlert } from "@/app/ui/error-alert";
-import { AttentionQueue } from "@/app/ui/attention-queue";
-import { StagingCommandCenter } from "@/app/ui/staging-command-center";
-import {
-  DEMO_ORGANIZATION,
-  DEMO_USER,
-  getDemoRequests,
-  isDemoMode,
-} from "@/lib/demo-store";
-import { effectiveRoles } from "@atlas/auth/membership";
-
-const activeLoads = [
-  {
-    id: "ATL-4821",
-    customer: "Hawthorne Home",
-    lane: "Nashville → Atlanta",
-    carrier: "Summit Freight",
-    status: "In transit",
-    time: "3h 42m",
-    progress: 64,
-    tone: "green",
-  },
-  {
-    id: "ATL-4818",
-    customer: "Meridian Foods",
-    lane: "Chicago → Columbus",
-    carrier: "BlueLine Logistics",
-    status: "At pickup",
-    time: "42m",
-    progress: 24,
-    tone: "blue",
-  },
-  {
-    id: "ATL-4812",
-    customer: "Northstar Retail",
-    lane: "Dallas → Memphis",
-    carrier: "Redwood Transport",
-    status: "Delayed",
-    time: "+1h 18m",
-    progress: 47,
-    tone: "amber",
-  },
-  {
-    id: "ATL-4809",
-    customer: "Apex Industrial",
-    lane: "Charlotte → Richmond",
-    carrier: "Vector Carrier Co.",
-    status: "Delivered",
-    time: "9:24 AM",
-    progress: 100,
-    tone: "slate",
-  },
-];
+import { isDemoMode } from "@/lib/demo-store";
+import { requireStagingWorkspace } from "@/lib/staging-workspace";
 
 export default async function TodayPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ error?: string }>;
 }) {
   const { slug } = await params;
-  if (isDemoMode()) {
-    if (slug !== DEMO_ORGANIZATION.slug) notFound();
-    return <DemoDashboard slug={slug} error={(await searchParams).error} />;
-  }
-  const userId = await getSessionUserId();
-  if (!userId) redirect("/sign-in");
-  const membership = await prisma.organizationMembership.findFirst({
-    where: { userId, status: "ACTIVE", organization: { slug } },
-    include: { organization: true, user: true, roles: true },
-  });
-  if (!membership) notFound();
+  if (isDemoMode()) return <DemoToday slug={slug} />;
+  const { membership } = await requireStagingWorkspace(slug);
+  const organizationId = membership.organizationId;
+  const [loads, waitingQuotes, tasks, activity] = await Promise.all([
+    prisma.load.findMany({
+      where: { organizationId, status: { notIn: ["COMPLETED", "CANCELLED"] } },
+      include: {
+        customer: true,
+        stops: { orderBy: { sequence: "asc" } },
+        carrier: true,
+        documents: true,
+      },
+      orderBy: { pickupDate: "asc" },
+      take: 10,
+    }),
+    prisma.quote.findMany({
+      where: {
+        organizationId,
+        status: { in: ["DRAFT", "SENT", "AWAITING_CUSTOMER"] },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    prisma.task.findMany({
+      where: { organizationId, status: "OPEN" },
+      orderBy: [{ dueAt: "asc" }, { createdAt: "asc" }],
+      take: 5,
+    }),
+    prisma.auditEvent.findMany({
+      where: { organizationId },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+    }),
+  ]);
+  const attention = [
+    ...tasks.map((task) => ({
+      id: task.id,
+      label: task.title,
+      href: task.loadId ? `/org/${slug}/loads/${task.loadId}` : `/org/${slug}`,
+    })),
+    ...loads
+      .filter((load) => load.status === "UNCOVERED" || load.status === "DRAFT")
+      .map((load) => ({
+        id: load.id,
+        label: "Assign a carrier",
+        href: `/org/${slug}/loads/${load.id}`,
+      })),
+    ...loads
+      .filter(
+        (load) =>
+          load.status === "DELIVERED" &&
+          !load.documents.some((doc) => doc.type === "POD"),
+      )
+      .map((load) => ({
+        id: `${load.id}-pod`,
+        label: "Upload the POD",
+        href: `/org/${slug}/loads/${load.id}?tab=documents`,
+      })),
+  ].slice(0, 5);
   return (
-    <StagingCommandCenter
-      slug={slug}
-      organizationId={membership.organizationId}
-      organizationName={membership.organization.name}
-      userId={userId}
-      userName={membership.user.name}
-      role={effectiveRoles(
-        membership.role,
-        membership.roles.map((item) => item.role),
-      ).join(" + ")}
-      error={(await searchParams).error}
-    />
-  );
-}
-
-function PageHeading({
-  slug,
-  name,
-  subtitle,
-}: {
-  slug: string;
-  name: string;
-  subtitle: string;
-}) {
-  return (
-    <div className="page-heading">
-      <div>
-        <p className="overline">{name} / Live operations</p>
-        <h1>Good morning, Jordan.</h1>
-        <p className="page-subtitle">
-          {subtitle}{" "}
-          <span className="live-indicator">
-            <i /> Live
-          </span>
-        </p>
-      </div>
-      <a className="button button-primary" href={`/org/${slug}/requests/new`}>
-        <span>＋</span> New shipment
-      </a>
-    </div>
-  );
-}
-
-function DemoDashboard({ slug, error }: { slug: string; error?: string }) {
-  const requests = getDemoRequests();
-  return (
-    <>
-      <PageHeading
-        slug={slug}
-        name={DEMO_ORGANIZATION.name}
-        subtitle={`${DEMO_USER.name} · Thursday, July 31`}
-      />
-      <ErrorAlert code={error} />
-      <AttentionQueue slug={slug} />
-      <section className="panel schedule-panel">
-        <div className="panel-heading">
-          <div>
-            <p className="overline">Schedule</p>
-            <h2>Today’s Pickups and Deliveries</h2>
-          </div>
+    <div className="ready-page">
+      <header className="ready-heading">
+        <div>
+          <p className="overline">
+            Internal operating system for Ready Freight
+          </p>
+          <h1>Today</h1>
+          <p>
+            What needs action, what is moving, and what customers are waiting
+            on.
+          </p>
         </div>
-        <Schedule
-          time="11:30"
-          type="Pickup"
-          facility="Atlas Nashville Warehouse"
-          load="ATL-4825"
-        />
-        <Schedule
-          time="13:00"
-          type="Delivery"
-          facility="Georgia Pacific DC"
-          load="ATL-4816"
-        />
-        <Schedule
-          time="14:45"
-          type="Pickup"
-          facility="Meridian Foods · Cicero"
-          load="ATL-4828"
-        />
-      </section>
-      <section className="panel request-panel" id="quotes">
-        <div className="panel-heading">
-          <div>
-            <p className="overline">Customer decisions</p>
-            <h2>Quotes Waiting</h2>
-          </div>
-        </div>
-        {requests.length === 0 ? (
-          <div className="empty-state compact-empty">
-            <span>✓</span>
-            <h3>No quotes are waiting</h3>
-          </div>
-        ) : (
-          <div className="load-table">
-            {requests.slice(0, 5).map((request) => (
-              <a
-                className="table-row request-row"
-                href={`/org/${slug}/requests/${request.id}`}
-                key={request.id}
-              >
-                <span>
-                  <b>Request {request.id.slice(0, 8)}</b>
-                  <small>Customer approval is waiting</small>
-                </span>
-                <span>Open quote →</span>
-              </a>
-            ))}
-          </div>
-        )}
-      </section>
-      <section className="panel activity-panel">
-        <div className="panel-heading">
-          <div>
-            <p className="overline">Updates</p>
-            <h2>Recent Activity</h2>
-          </div>
-        </div>
-        <Activity
-          icon="✓"
-          title="POD received"
-          detail="ATL-4809 · 4 min ago"
-          tone="green"
-        />
-        <Activity
-          icon="↗"
-          title="Carrier checked in at pickup"
-          detail="ATL-4818 · 12 min ago"
-          tone="blue"
-        />
-      </section>
-    </>
-  );
-}
-
-function LegacyDemoDashboard({
-  slug,
-  error,
-}: {
-  slug: string;
-  error?: string;
-}) {
-  const requests = getDemoRequests();
-  return (
-    <>
-      <PageHeading
-        slug={slug}
-        name={DEMO_ORGANIZATION.name}
-        subtitle={`${DEMO_USER.name} · Thursday, July 31`}
-      />
-      <ErrorAlert code={error} />
-      <AttentionQueue slug={slug} />
-      <section className="metrics-grid" aria-label="Operations metrics">
-        <Metric
-          label="Today's revenue"
-          value="$48,240"
-          delta="+12.4%"
-          spark="revenue"
-        />
-        <Metric
-          label="Gross profit"
-          value="$8,684"
-          detail="18.0% margin"
-          spark="profit"
-        />
-        <Metric
-          label="Loads in transit"
-          value="12"
-          detail="4 arriving today"
-          spark="loads"
-        />
-        <Metric
-          label="Awaiting approval"
-          value="3"
-          detail="Oldest · 47 min"
-          attention
-          spark="approval"
-        />
-      </section>
-
-      <section className="command-grid">
-        <div className="panel map-panel">
-          <div className="panel-heading">
-            <div>
-              <p className="overline">Network pulse</p>
-              <h2>Live load movement</h2>
-            </div>
-            <span className="small-select">United States⌄</span>
-          </div>
-          <div
-            className="network-map"
-            aria-label="Stylized live freight network map"
-          >
-            <div className="map-grid" />
-            <div className="route-path route-one" />
-            <div className="route-path route-two" />
-            <div className="route-path route-three" />
-            <MapPoint className="nashville" city="Nashville" count="4" />
-            <MapPoint className="atlanta" city="Atlanta" count="6" />
-            <MapPoint className="chicago" city="Chicago" count="3" />
-            <MapPoint className="dallas" city="Dallas" count="2" />
-            <MapPoint className="charlotte" city="Charlotte" count="2" />
-            <div className="map-legend">
+        <Link className="button button-primary" href={`/org/${slug}/quotes`}>
+          New quote
+        </Link>
+      </header>
+      <section className="ready-grid">
+        <Panel title="Needs Attention">
+          {attention.length ? (
+            attention.map((item) => (
+              <Link className="ready-row" key={item.id} href={item.href}>
+                <strong>{item.label}</strong>
+                <span>Open →</span>
+              </Link>
+            ))
+          ) : (
+            <Empty>Nothing is blocked.</Empty>
+          )}
+        </Panel>
+        <Panel title="Today’s Pickups and Deliveries">
+          {loads.slice(0, 5).map((load) => (
+            <Link
+              className="ready-row"
+              key={load.id}
+              href={`/org/${slug}/loads/${load.id}`}
+            >
               <span>
-                <i className="green-dot" /> On time 9
+                <strong>{load.loadNumber}</strong> · {load.customer.name}
               </span>
-              <span>
-                <i className="amber-dot" /> At risk 2
-              </span>
-              <span>
-                <i className="red-dot" /> Delayed 1
-              </span>
-            </div>
-          </div>
-        </div>
-        <aside className="panel intelligence-panel">
-          <div className="panel-heading">
-            <div>
-              <p className="overline violet">Atlas intelligence</p>
-              <h2>AI recommendations</h2>
-            </div>
-            <span className="ai-orb">✦</span>
-          </div>
-          <Insight
-            tone="critical"
-            title="Protect the Dallas → Memphis load"
-            body="Weather near Little Rock may add 75–90 minutes. Notify Northstar Retail now."
-            action="Review load"
-          />
-          <Insight
-            tone="opportunity"
-            title="Margin opportunity"
-            body="Two Nashville pickups can be bundled. Estimated savings: $640."
-            action="View opportunity"
-          />
-          <Insight
-            tone="neutral"
-            title="3 requests ready to approve"
-            body="All required data is present and confidence is above 94%."
-            action="Open queue"
-          />
-        </aside>
-      </section>
-
-      <section className="panel active-loads-panel">
-        <div className="panel-heading">
-          <div>
-            <p className="overline">Execution</p>
-            <h2>Active loads</h2>
-          </div>
-          <a className="panel-link" href="#requests">
-            View all loads →
-          </a>
-        </div>
-        <div className="load-table">
-          <div className="table-head">
-            <span>Load</span>
-            <span>Customer & lane</span>
-            <span>Carrier</span>
-            <span>Progress</span>
-            <span>Status</span>
-          </div>
-          {activeLoads.map((load) => (
-            <div className="table-row load-row" key={load.id}>
-              <strong>{load.id}</strong>
-              <span>
-                <b>{load.customer}</b>
-                <small>{load.lane}</small>
-              </span>
-              <span>{load.carrier}</span>
-              <span className="progress-cell">
-                <i>
-                  <b style={{ width: `${load.progress}%` }} />
-                </i>
-                <small>{load.progress}%</small>
-              </span>
-              <span>
-                <span className={`status-pill ${load.tone}`}>
-                  {load.status}
-                </span>
-                <small>{load.time}</small>
-              </span>
+              <span>{label(load.status)}</span>
+            </Link>
+          ))}
+        </Panel>
+        <Panel title="Quotes Waiting">
+          {waitingQuotes.map((quote) => (
+            <Link
+              className="ready-row"
+              key={quote.id}
+              href={`/org/${slug}/quotes/${quote.id}`}
+            >
+              <strong>{quote.quoteNumber || "Draft quote"}</strong>
+              <span>{label(quote.status)}</span>
+            </Link>
+          ))}
+        </Panel>
+        <Panel title="Recent Activity">
+          {activity.map((event) => (
+            <div className="ready-row" key={event.id}>
+              <span>{label(event.action)}</span>
+              <small>{event.createdAt.toLocaleString()}</small>
             </div>
           ))}
-        </div>
+        </Panel>
       </section>
-
-      <section className="lower-grid">
-        <div className="panel schedule-panel">
-          <div className="panel-heading">
-            <div>
-              <p className="overline">Next 6 hours</p>
-              <h2>Upcoming appointments</h2>
-            </div>
-          </div>
-          <Schedule
-            time="11:30"
-            type="Pickup"
-            facility="Atlas Nashville Warehouse"
-            load="ATL-4825"
-          />
-          <Schedule
-            time="13:00"
-            type="Delivery"
-            facility="Georgia Pacific DC"
-            load="ATL-4816"
-          />
-          <Schedule
-            time="14:45"
-            type="Pickup"
-            facility="Meridian Foods · Cicero"
-            load="ATL-4828"
-          />
-        </div>
-        <div className="panel activity-panel">
-          <div className="panel-heading">
-            <div>
-              <p className="overline">Live feed</p>
-              <h2>Recent activity</h2>
-            </div>
-          </div>
-          <Activity
-            icon="✓"
-            title="POD received"
-            detail="ATL-4809 · 4 min ago"
-            tone="green"
-          />
-          <Activity
-            icon="↗"
-            title="Carrier checked in at pickup"
-            detail="ATL-4818 · 12 min ago"
-            tone="blue"
-          />
-          <Activity
-            icon="!"
-            title="Weather risk detected"
-            detail="ATL-4812 · 18 min ago"
-            tone="amber"
-          />
-          <Activity
-            icon="✦"
-            title="AI completed shipment analysis"
-            detail="Request 9f21c8 · 26 min ago"
-            tone="violet"
-          />
-        </div>
-      </section>
-
-      <section className="panel request-panel" id="requests">
-        <div className="panel-heading">
-          <div>
-            <p className="overline">Your demo session</p>
-            <h2>Shipment requests</h2>
-          </div>
-          <span className="session-note">
-            Synthetic data resets with the server
-          </span>
-        </div>
-        {requests.length === 0 ? (
-          <div className="empty-state">
-            <span>＋</span>
-            <h3>No demo requests yet</h3>
-            <p>
-              Start with a plain-English shipment and let Atlas structure the
-              work.
-            </p>
-            <a
-              className="button button-secondary"
-              href={`/org/${slug}/requests/new`}
-            >
-              Create first request
-            </a>
-          </div>
-        ) : (
-          <div className="load-table">
-            {requests.map((request) => (
-              <a
-                className="table-row request-row"
-                href={
-                  request.loadId
-                    ? `/org/${slug}/loads/${request.loadId}`
-                    : `/org/${slug}/requests/${request.id}`
-                }
-                key={request.id}
-              >
-                <span>
-                  <b>Request {request.id.slice(0, 8)}</b>
-                  <small>Created moments ago</small>
-                </span>
-                <span>Revision {request.currentRevisionNumber}</span>
-                <span className={`status-pill ${request.status.toLowerCase()}`}>
-                  {request.status.replace("_", " ")}
-                </span>
-                <span>Open →</span>
-              </a>
-            ))}
-          </div>
-        )}
-      </section>
-    </>
-  );
-}
-
-void LegacyDemoDashboard;
-
-function Metric({
-  label,
-  value,
-  delta,
-  detail,
-  attention,
-  spark,
-}: {
-  label: string;
-  value: string;
-  delta?: string;
-  detail?: string;
-  attention?: boolean;
-  spark: string;
-}) {
-  return (
-    <article className={`metric-card ${attention ? "metric-attention" : ""}`}>
-      <div>
-        <p>{label}</p>
-        <strong>{value}</strong>
-        <small className={delta ? "positive" : ""}>{delta ?? detail}</small>
-      </div>
-      <div className={`sparkline ${spark}`}>
-        <i />
-        <i />
-        <i />
-        <i />
-        <i />
-        <i />
-      </div>
-    </article>
-  );
-}
-function MapPoint({
-  className,
-  city,
-  count,
-}: {
-  className: string;
-  city: string;
-  count: string;
-}) {
-  return (
-    <div className={`map-point ${className}`}>
-      <span>{count}</span>
-      <small>{city}</small>
     </div>
   );
 }
-function Insight({
-  tone,
+
+function Panel({
   title,
-  body,
-  action,
+  children,
 }: {
-  tone: string;
   title: string;
-  body: string;
-  action: string;
+  children: React.ReactNode;
 }) {
   return (
-    <article className={`insight ${tone}`}>
-      <span className="insight-icon">
-        {tone === "critical" ? "!" : tone === "opportunity" ? "↗" : "✓"}
-      </span>
-      <div>
-        <h3>{title}</h3>
-        <p>{body}</p>
-        <button className="inline-action">{action} →</button>
+    <div className="panel ready-panel">
+      <div className="panel-heading">
+        <h2>{title}</h2>
       </div>
-    </article>
-  );
-}
-function Schedule({
-  time,
-  type,
-  facility,
-  load,
-}: {
-  time: string;
-  type: string;
-  facility: string;
-  load: string;
-}) {
-  return (
-    <div className="schedule-row">
-      <time>{time}</time>
-      <i />
-      <span>
-        <b>
-          {type} · {facility}
-        </b>
-        <small>{load}</small>
-      </span>
-      <span className="status-pill slate">Confirmed</span>
+      <div>{children}</div>
     </div>
   );
 }
-function Activity({
-  icon,
-  title,
-  detail,
-  tone,
-}: {
-  icon: string;
-  title: string;
-  detail: string;
-  tone: string;
-}) {
+function Empty({ children }: { children: React.ReactNode }) {
+  return <p className="ready-empty">{children}</p>;
+}
+function label(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+function DemoToday({ slug }: { slug: string }) {
   return (
-    <div className="activity-row">
-      <span className={`activity-icon ${tone}`}>{icon}</span>
-      <span>
-        <b>{title}</b>
-        <small>{detail}</small>
-      </span>
+    <div className="ready-page">
+      <header className="ready-heading">
+        <div>
+          <p className="overline">
+            Internal operating system for Ready Freight
+          </p>
+          <h1>Today</h1>
+          <p>
+            Demo access is ready. Sign in to staging to review persistent
+            operations.
+          </p>
+        </div>
+        <Link className="button button-primary" href={`/org/${slug}/quotes`}>
+          Quotes
+        </Link>
+      </header>
+      <section className="ready-grid">
+        <Panel title="Needs Attention">
+          <Empty>Confirm pickup appointment</Empty>
+        </Panel>
+        <Panel title="Today’s Pickups and Deliveries">
+          <Empty>No demo loads today.</Empty>
+        </Panel>
+        <Panel title="Quotes Waiting">
+          <Empty>No quotes waiting.</Empty>
+        </Panel>
+        <Panel title="Recent Activity">
+          <Empty>Demo workspace opened.</Empty>
+        </Panel>
+      </section>
     </div>
   );
 }
