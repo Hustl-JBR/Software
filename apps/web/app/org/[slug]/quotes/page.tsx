@@ -86,7 +86,21 @@ export default async function QuotesPage({
           </label>
           <label>
             Equipment
-            <input name="equipmentType" placeholder="53' Dry Van" required />
+            <select name="equipmentType" required>
+              <option value="">Select equipment</option>
+              <option value="DRY_VAN">Dry van</option>
+              <option value="REEFER">Reefer</option>
+              <option value="FLATBED">Flatbed</option>
+              <option value="STEP_DECK">Step deck</option>
+              <option value="CONESTOGA">Conestoga</option>
+              <option value="LOWBOY">Lowboy</option>
+              <option value="RGN">RGN</option>
+              <option value="POWER_ONLY">Power only</option>
+              <option value="BOX_TRUCK">Box truck</option>
+              <option value="SPRINTER">Sprinter van</option>
+              <option value="HOTSHOT">Hotshot</option>
+              <option value="TANKER">Tanker</option>
+            </select>
           </label>
           <label>
             Commodity

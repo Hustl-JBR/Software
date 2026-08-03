@@ -48,7 +48,9 @@ test("create customer, price and accept a quote, then open the uncovered load", 
     .fill("200 Freight Ave, Charlotte, NC 28202");
   await quoteDetails.locator('input[name="pickupDate"]').fill("2026-08-10");
   await quoteDetails.locator('input[name="deliveryDate"]').fill("2026-08-12");
-  await quoteDetails.locator('input[name="equipmentType"]').fill("53' Dry Van");
+  await quoteDetails
+    .locator('select[name="equipmentType"]')
+    .selectOption("DRY_VAN");
   await quoteDetails.locator('input[name="commodity"]').fill("Canned goods");
   await quoteDetails.locator('input[name="weightPounds"]').fill("38000");
   await quoteDetails.locator('input[name="customerPrice"]').fill("2850.00");

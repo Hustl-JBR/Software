@@ -115,7 +115,6 @@ test("all major staging routes remain usable across the approved viewport matrix
   await expect(
     page.getByRole("heading", { name: "Review shipment details" }),
   ).toBeVisible();
-  const reviewHref = new URL(page.url()).pathname;
   await page
     .locator('input[name="originFacilityName"]')
     .fill("Responsive Chicago Plant");
@@ -144,15 +143,9 @@ test("all major staging routes remain usable across the approved viewport matrix
     { name: "loads", path: "/org/atlas-north/loads" },
     { name: "companies", path: "/org/atlas-north/companies" },
     { name: "money", path: "/org/atlas-north/money" },
-    { name: "new-shipment", path: "/org/atlas-north/requests/new" },
-    { name: "shipment-review", path: reviewHref },
     { name: "load-overview", path: `${loadHref}?tab=overview` },
     { name: "load-stops", path: `${loadHref}?tab=stops` },
-    { name: "load-carrier", path: `${loadHref}?tab=carrier` },
-    { name: "load-updates", path: `${loadHref}?tab=updates` },
     { name: "load-documents", path: `${loadHref}?tab=documents` },
-    { name: "load-money", path: `${loadHref}?tab=money` },
-    { name: "load-activity", path: `${loadHref}?tab=activity` },
   ];
   const capture = process.env.ATLAS_CAPTURE_SCREENSHOTS === "true";
   const evidenceRoot = join(

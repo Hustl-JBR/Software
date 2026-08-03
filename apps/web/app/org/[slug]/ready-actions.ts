@@ -206,7 +206,7 @@ export async function acceptReadyQuote(form: FormData) {
         status: "UNCOVERED",
         commodity: ready.commodity,
         weightPounds: ready.weightPounds,
-        equipmentType: ready.equipmentType,
+        equipmentType: normalizeEquipment(ready.equipmentType),
         pickupDate: ready.pickupDate,
         deliveryDate: ready.deliveryDate,
         palletCount: quote.palletCount,
@@ -275,6 +275,20 @@ function addressStop(
     postalCode: (parts[2] || "").split(" ")[1] || "",
     validationStatus: "MANUALLY_CONFIRMED" as const,
   };
+}
+
+function normalizeEquipment(value: string) {
+  const normalized = value
+    .trim()
+    .toUpperCase()
+    .replaceAll(/[^A-Z0-9]+/g, "_");
+  const aliases: Record<string, string> = {
+    "53_DRY_VAN": "DRY_VAN",
+    DRYVAN: "DRY_VAN",
+    REFRIGERATED: "REEFER",
+    SPRINTER_VAN: "SPRINTER",
+  };
+  return aliases[normalized] || normalized;
 }
 
 export async function createCarrier(form: FormData) {
