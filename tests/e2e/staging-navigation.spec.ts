@@ -38,7 +38,7 @@ test("authenticated staging shell exposes Ready Operations owner workflows", asy
       "STAGING · POSTGRESQL",
     );
   }
-  await expect(page.getByText("READY OPERATIONS").first()).toBeVisible();
+  await expect(page.getByText("READY OPERATIONS")).toHaveCount(3);
   await expect(page.getByText("Google", { exact: false })).toHaveCount(0);
 
   await expect(

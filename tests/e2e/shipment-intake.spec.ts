@@ -35,7 +35,7 @@ test("create customer, price and accept a quote, then open the uncovered load", 
   const quoteDetails = page.locator("details", {
     hasText: "New quote request",
   });
-  if (!(await quoteDetails.getAttribute("open")))
+  if (!(await quoteDetails.locator('select[name="customerId"]').isVisible()))
     await quoteDetails.locator("summary").click();
   await quoteDetails
     .locator('select[name="customerId"]')
